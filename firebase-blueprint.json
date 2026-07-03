@@ -1,0 +1,152 @@
+{
+  "entities": {
+    "Student": {
+      "title": "Student",
+      "description": "Registered hostel students details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number", "description": "Unique student identifier" },
+        "name": { "type": "string", "description": "Student full name" },
+        "mobile": { "type": "string", "description": "Student mobile number" },
+        "father": { "type": "string" },
+        "fatherMob": { "type": "string" },
+        "room": { "type": "string" },
+        "sharing": { "type": "string" },
+        "fee": { "type": "number" },
+        "status": { "type": "string" },
+        "address": { "type": "string" },
+        "paid": { "type": "number" },
+        "due": { "type": "number" },
+        "joinDate": { "type": "string" }
+      },
+      "required": ["id", "name", "mobile", "room", "sharing", "fee", "status", "address", "paid", "due", "joinDate"]
+    },
+    "Payment": {
+      "title": "Payment",
+      "description": "Student fee payments and installment receipts",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "receipt": { "type": "string" },
+        "studentId": { "type": "number" },
+        "studentName": { "type": "string" },
+        "room": { "type": "string" },
+        "amount": { "type": "number" },
+        "mode": { "type": "string" },
+        "month": { "type": "string" },
+        "date": { "type": "string" },
+        "note": { "type": "string" }
+      },
+      "required": ["id", "receipt", "studentId", "studentName", "room", "amount", "mode", "month", "date"]
+    },
+    "Complaint": {
+      "title": "Complaint",
+      "description": "Student support tickets and room complaints",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "ticket": { "type": "string" },
+        "studentId": { "type": "number" },
+        "studentName": { "type": "string" },
+        "room": { "type": "string" },
+        "type": { "type": "string" },
+        "priority": { "type": "string" },
+        "description": { "type": "string" },
+        "status": { "type": "string" },
+        "date": { "type": "string" }
+      },
+      "required": ["id", "ticket", "studentId", "studentName", "room", "type", "priority", "description", "status", "date"]
+    },
+    "Visitor": {
+      "title": "Visitor",
+      "description": "Daily visitor entry logs for the hostel",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "name": { "type": "string" },
+        "contact": { "type": "string" },
+        "studentId": { "type": "number" },
+        "studentName": { "type": "string" },
+        "room": { "type": "string" },
+        "purpose": { "type": "string" },
+        "relation": { "type": "string" },
+        "date": { "type": "string" },
+        "time": { "type": "string" }
+      },
+      "required": ["id", "name", "contact", "studentId", "studentName", "room", "purpose", "relation", "date", "time"]
+    },
+    "PartnerWithdrawal": {
+      "title": "PartnerWithdrawal",
+      "description": "Partner personal or hostel grocery withdrawal records",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "partner": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "purpose": { "type": "string" },
+        "recordedBy": { "type": "string" }
+      },
+      "required": ["id", "partner", "amount", "date", "purpose", "recordedBy"]
+    },
+    "HostelExpense": {
+      "title": "HostelExpense",
+      "description": "Hostel daily operating expenses",
+      "type": "object",
+      "properties": {
+        "id": { "type": "number" },
+        "category": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string" },
+        "purpose": { "type": "string" },
+        "recordedBy": { "type": "string" }
+      },
+      "required": ["id", "category", "amount", "date", "purpose", "recordedBy"]
+    },
+    "HostelSettings": {
+      "title": "HostelSettings",
+      "description": "Global settings and configuration for the hostel app",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "address": { "type": "string" },
+        "wa": { "type": "string" },
+        "email": { "type": "string" },
+        "upi": { "type": "string" },
+        "lateFee": { "type": "number" }
+      },
+      "required": ["name", "phone", "address", "email", "upi", "lateFee"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Collection of all students in Unity Boys Hostel"
+    },
+    "/payments/{paymentId}": {
+      "schema": "Payment",
+      "description": "Collection of all student fee receipts and payments"
+    },
+    "/complaints/{complaintId}": {
+      "schema": "Complaint",
+      "description": "Collection of all student tickets and complaints"
+    },
+    "/visitors/{visitorId}": {
+      "schema": "Visitor",
+      "description": "Collection of all visitor entry logs"
+    },
+    "/partnerWithdrawals/{withdrawalId}": {
+      "schema": "PartnerWithdrawal",
+      "description": "Collection of partner withdrawal and expense entries"
+    },
+    "/expenses/{expenseId}": {
+      "schema": "HostelExpense",
+      "description": "Collection of all hostel monthly operating expenses"
+    },
+    "/settings/{settingsDocId}": {
+      "schema": "HostelSettings",
+      "description": "Singleton configuration document for hostel parameters"
+    }
+  }
+}
