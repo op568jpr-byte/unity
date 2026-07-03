@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { LogIn, Menu, X } from 'lucide-react';
-
-const logoImg = "/logo-new-v4-final.jpg?v=4";
+import Logo from './Logo';
 
 interface HeaderProps {
   onOpenLogin: () => void;
@@ -24,12 +23,7 @@ export default function Header({ onOpenLogin, onScrollTo, onOpenSelfRegistration
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleNavClick('home')}>
-            <img 
-              src={logoImg} 
-              alt="Unity Hostel Logo" 
-              className="w-12 h-12 rounded-full border border-[#D4AF37] object-contain shadow-md shadow-[#D4AF37]/10"
-              referrerPolicy="no-referrer"
-            />
+            <Logo size="md" />
             <div>
               <h1 className="text-xl font-extrabold text-white tracking-tight leading-none">Unity Boys Hostel</h1>
               <span className="text-[11px] font-bold text-[#D4AF37] uppercase tracking-widest block mt-1">Jaipur, Rajasthan</span>

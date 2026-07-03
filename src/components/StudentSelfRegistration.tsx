@@ -31,7 +31,7 @@ const convertYYYYMMDDToDDMMYYYY = (dateStr: string) => {
   return dateStr;
 };
 
-const logoImg = "/logo-new-v4-final.jpg?v=4";
+import Logo from './Logo';
 
 interface StudentSelfRegistrationProps {
   students: Student[];
@@ -1256,12 +1256,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
           </button>
           
           <div className="flex items-center gap-3">
-            <img 
-               src={logoImg} 
-               alt="Unity Hostel Logo" 
-               className="w-12 h-12 rounded-full border border-[#D4AF37] object-contain shadow-md bg-[#1E2022]"
-               referrerPolicy="no-referrer"
-            />
+            <Logo size="md" />
             <div>
               <h1 className="text-lg sm:text-xl font-black uppercase tracking-tight">
                 {settings?.name || 'Unity Boys Hostel'}

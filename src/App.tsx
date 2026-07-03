@@ -185,6 +185,23 @@ export default function App() {
 
   // --- DATABASE INITIALIZATION ON MOUNT ---
   useEffect(() => {
+    // One-time deletion of old demo partner withdrawals & expenses from Firestore
+    const clearDemoEntries = async () => {
+      try {
+        const demoWIds = [5001, 5002, 5003, 5004];
+        const demoEIds = [6001, 6002, 6003, 6004, 6005];
+        for (const id of demoWIds) {
+          await deleteDocument('partnerWithdrawals', id);
+        }
+        for (const id of demoEIds) {
+          await deleteDocument('expenses', id);
+        }
+      } catch (err) {
+        console.error('Error clearing demo entries:', err);
+      }
+    };
+    clearDemoEntries();
+
     // Set up real-time sync for students
     const unsubStudents = setupCollectionSync<Student>(
       'students',

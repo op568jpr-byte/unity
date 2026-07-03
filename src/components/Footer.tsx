@@ -1,7 +1,6 @@
 import React from 'react';
 import { Facebook, Instagram, Youtube, Phone, ArrowUpRight, GraduationCap } from 'lucide-react';
-
-const logoImg = "/logo-new-v4-final.jpg?v=4";
+import Logo from './Logo';
 
 interface FooterProps {
   onScrollTo: (id: string) => void;
@@ -16,12 +15,7 @@ export default function Footer({ onScrollTo, onOpenLogin }: FooterProps) {
           {/* Col 1 - Brand pitch */}
           <div>
             <div className="flex items-center gap-3 cursor-pointer mb-5" onClick={() => onScrollTo('home')}>
-              <img 
-                src={logoImg} 
-                alt="Unity Hostel Logo" 
-                className="w-10 h-10 rounded-full border border-[#D4AF37] object-contain shadow bg-[#1E2022]"
-                referrerPolicy="no-referrer"
-              />
+              <Logo size="sm" />
               <h4 className="text-lg font-bold text-white">Unity Boys Hostel</h4>
             </div>
             <p className="text-xs text-gray-400 leading-relaxed mb-6">

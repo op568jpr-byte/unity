@@ -5,8 +5,7 @@ import {
   Building2, ChevronRight, Menu, Bell, Globe, Sparkles, Zap, Utensils
 } from 'lucide-react';
 import { Student, Payment, Complaint, Visitor, HostelSettings, UserSession } from '../types';
-
-const logoImg = "/logo-new-v4-final.jpg?v=4";
+import Logo from './Logo';
 
 interface DashboardLayoutProps {
   session: UserSession;
@@ -200,13 +199,7 @@ export default function DashboardLayout({
           {/* Sidebar Header */}
           <div className="p-5 border-b border-white/5 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <img 
-                src={logoImg} 
-                alt="Unity Hostel Logo" 
-                className="w-10 h-10 rounded-full border border-current object-contain shadow bg-gray-900"
-                style={{ color: settings.sidebarTheme === 'dark' ? '#D4AF37' : '#FF6B35' }}
-                referrerPolicy="no-referrer"
-              />
+              <Logo size="sm" />
               <div>
                 <h3 className="text-sm font-black tracking-tight leading-none text-white">{settings.name || "Unity Hostel"}</h3>
                 <span className={`text-[10px] ${getSidebarAccentClass()} font-bold block mt-1 uppercase tracking-wider`}>
