@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LogIn, Menu, X } from 'lucide-react';
 
-const logoImg = "/logo-new-v3.png?v=3";
+const logoImg = "/logo-new-v3.jpg?v=3";
 
 interface HeaderProps {
   onOpenLogin: () => void;
@@ -32,7 +32,7 @@ export default function Header({ onOpenLogin, onScrollTo, onOpenSelfRegistration
             />
             <div>
               <h1 className="text-xl font-extrabold text-white tracking-tight leading-none">Unity Boys Hostel</h1>
-              <span className="text-[11px] font-bold text-[#D4AF37] uppercase tracking-widest block mt-1">Jaipur, Rajasthan</span>
+              <span className="text-[11px] font-bold text-[#D4AF37] uppercase tracking-widest block mt-1">Jaipur, Rajasthan • Shiv Shankar Saini</span>
             </div>
           </div>
 
@@ -77,6 +77,11 @@ export default function Header({ onOpenLogin, onScrollTo, onOpenSelfRegistration
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <div className="md:hidden bg-[#1E2022] border-b border-[#D4AF37]/20 px-4 py-4 space-y-2">
+          {/* Active Warden / Owner Banner */}
+          <div className="px-4 py-2.5 bg-amber-500/10 border border-[#D4AF37]/25 rounded-xl flex items-center justify-between mb-3">
+            <span className="text-xs text-gray-400 font-bold uppercase tracking-wider">Owner / Warden:</span>
+            <span className="text-xs font-black text-[#D4AF37]">Shiv Shankar Saini</span>
+          </div>
           {['home', 'about', 'rooms', 'facilities', 'contact'].map((section) => (
             <button
               key={section}

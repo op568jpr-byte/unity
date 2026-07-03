@@ -99,7 +99,10 @@ export default function RoomsSection({ onScrollTo }: RoomsSectionProps) {
               {/* Pricing & Booking Button */}
               <div className="pt-6 border-t border-dashed border-gray-100/20">
                 <div className="flex items-baseline justify-between mb-4">
-                  <span className={`text-xs ${room.featured ? 'text-gray-400' : 'text-gray-500'}`}>Starting from</span>
+                  <div className="text-left">
+                    <span className={`text-xs block ${room.featured ? 'text-gray-400' : 'text-gray-500'}`}>Starting from</span>
+                    <span className="text-[10px] font-extrabold text-[#FF6B35] block uppercase tracking-wider mt-0.5">Ground Floor Only</span>
+                  </div>
                   <div className="text-right">
                     <span className={`text-2xl font-black ${room.featured ? 'text-[#FF6B35]' : 'text-gray-900'}`}>{room.price}</span>
                     <span className={`text-[10px] block ${room.featured ? 'text-gray-400' : 'text-gray-500'}`}>/ month (+ GST)</span>
