@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
-import { Hammer, CheckCircle, Clock, Plus, Inbox, AlertTriangle } from 'lucide-react';
+import { Hammer, CheckCircle, Clock, Plus, Inbox, AlertTriangle, Trash2 } from 'lucide-react';
 import { Complaint } from '../types';
 import ConfirmationModal from './ConfirmationModal';
 
 interface ComplaintManagementProps {
   complaints: Complaint[];
   onResolveComplaint: (id: number) => void;
+  onDeleteComplaint: (id: number) => void;
   onOpenAddComplaint: () => void;
 }
 
 export default function ComplaintManagement({
   complaints,
   onResolveComplaint,
+  onDeleteComplaint,
   onOpenAddComplaint
 }: ComplaintManagementProps) {
   const [complaintToResolve, setComplaintToResolve] = useState<Complaint | null>(null);
@@ -117,18 +119,31 @@ export default function ComplaintManagement({
                     </td>
 
                      {/* Resolver commands */}
-                    <td className="py-4 px-5 text-center">
-                      {isPending ? (
+                    <td className="py-4 px-5">
+                      <div className="flex items-center justify-center gap-2">
+                        {isPending ? (
+                          <button
+                            onClick={() => setComplaintToResolve(c)}
+                            className="px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-100 rounded-xl cursor-pointer transition active:scale-95 text-xs font-bold"
+                            title="Click to resolve and clear"
+                          >
+                            Resolve
+                          </button>
+                        ) : (
+                          <span className="text-gray-400 font-extrabold text-xs">✓ Cleared</span>
+                        )}
                         <button
-                          onClick={() => setComplaintToResolve(c)}
-                          className="px-2 py-1 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-100 rounded-xl cursor-pointer transition active:scale-95 text-xs font-bold"
-                          title="Click to resolve and clear"
+                          onClick={() => {
+                            if (confirm(`Delete complaint ticket #${c.ticket}?`)) {
+                              onDeleteComplaint(c.id);
+                            }
+                          }}
+                          className="p-1.5 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-lg cursor-pointer transition border border-rose-100"
+                          title="Delete Ticket"
                         >
-                          Resolve
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
-                      ) : (
-                        <span className="text-gray-400 font-extrabold text-xs">✓ Cleared</span>
-                      )}
+                      </div>
                     </td>
                   </tr>
                 );

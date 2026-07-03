@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%">
+  <!-- Definitions for Gradients and Styling -->
+  <defs>
+    <!-- Rich Golden Metallic Gradient -->
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF0BE" />
+      <stop offset="25%" stop-color="#F3C64F" />
+      <stop offset="50%" stop-color="#D4AF37" />
+      <stop offset="75%" stop-color="#AA7C11" />
+      <stop offset="100%" stop-color="#8B6508" />
+    </linearGradient>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Great+Vibes&amp;family=Cinzel:wght@600&amp;display=swap');
+      .cursive-text {
+        font-family: 'Great Vibes', 'Alex Brush', cursive;
+        font-size: 155px;
+        fill: url(#goldGradient);
+        text-anchor: middle;
+      }
+      .serif-text {
+        font-family: 'Cinzel', 'Playfair Display', serif;
+        font-size: 38px;
+        letter-spacing: 12px;
+        fill: url(#goldGradient);
+        text-anchor: middle;
+        font-weight: 700;
+      }
+    </style>
+  </defs>
+
+  <!-- Circular dark black/charcoal background -->
+  <circle cx="250" cy="250" r="240" fill="#1A1B1D" />
+  
+  <!-- Outer Gold Ring -->
+  <circle cx="250" cy="250" r="222" fill="none" stroke="url(#goldGradient)" stroke-width="4.5" />
+  
+  <!-- Inner Gold Ring -->
+  <circle cx="250" cy="250" r="213" fill="none" stroke="url(#goldGradient)" stroke-width="1.8" />
+  
+  <!-- Subtle inner background shadow ring -->
+  <circle cx="250" cy="250" r="211" fill="none" stroke="#111213" stroke-width="2" />
+
+  <!-- "Unity" Cursive Text (Shifted up slightly for visual balance) -->
+  <text x="248" y="240" class="cursive-text">Unity</text>
+  
+  <!-- "HOSTEL" Serif Text (Placed cleanly below "Unity") -->
+  <text x="256" y="325" class="serif-text">HOSTEL</text>
+</svg>

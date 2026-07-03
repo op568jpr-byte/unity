@@ -6,7 +6,8 @@ import {
   setDoc, 
   deleteDoc, 
   onSnapshot, 
-  writeBatch
+  writeBatch,
+  getDoc
 } from 'firebase/firestore';
 import config from '../../firebase-applet-config.json';
 
@@ -58,16 +59,33 @@ export function setupCollectionSync<T>(
   
   return onSnapshot(colRef, async (snapshot) => {
     if (snapshot.empty && initialDataFallback && initialDataFallback.length > 0) {
-      console.log(`Seeding initial data for ${collectionName}...`);
-      const batch = writeBatch(db);
-      initialDataFallback.forEach((item: any) => {
-        const id = item.id;
-        if (id) {
-          const docRef = doc(colRef, id.toString());
-          batch.set(docRef, item);
+      try {
+        const seedRef = doc(db, 'system_metadata', 'seeding');
+        const seedSnap = await getDoc(seedRef);
+        const seededData = seedSnap.exists() ? seedSnap.data() : {};
+        if (seededData[collectionName]) {
+          // Already seeded before, do not re-seed when empty!
+          onUpdate([]);
+          return;
         }
-      });
-      await batch.commit();
+
+        console.log(`Seeding initial data for ${collectionName}...`);
+        const batch = writeBatch(db);
+        initialDataFallback.forEach((item: any) => {
+          const id = item.id;
+          if (id) {
+            const docRef = doc(colRef, id.toString());
+            batch.set(docRef, item);
+          }
+        });
+        await batch.commit();
+
+        // Mark as seeded in Firestore
+        await setDoc(seedRef, { ...seededData, [collectionName]: true }, { merge: true });
+      } catch (e) {
+        console.error(`Error checking seeding status for ${collectionName}:`, e);
+        onUpdate([]);
+      }
     } else {
       const list: T[] = [];
       snapshot.forEach((doc) => {

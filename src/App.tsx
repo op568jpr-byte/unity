@@ -757,6 +757,12 @@ export default function App() {
     showToast('Complaint ticket cleared & resolved! ✓');
   };
 
+  const handleDeleteComplaint = (id: number) => {
+    const updated = complaints.filter(c => c.id !== id);
+    handleComplaintsUpdate(updated);
+    showToast('Complaint ticket deleted successfully! 🗑️');
+  };
+
   // Check-in guest logs
   const handleRegisterVisitor = (fields: { name: string; contact: string; studentId: number; purpose: string; relation: string }) => {
     const matchingStudentObj = students.find(s => s.id === fields.studentId);
@@ -781,6 +787,12 @@ export default function App() {
     handleVisitorsUpdate([...visitors, vis]);
     setIsVisitorModalOpen(false);
     showToast(`Warden visitor register logged for "${fields.name}"! 🚪`);
+  };
+
+  const handleDeleteVisitor = (id: number) => {
+    const updated = visitors.filter(v => v.id !== id);
+    handleVisitorsUpdate(updated);
+    showToast('Visitor record deleted successfully! 🗑️');
   };
 
   // Saving settings
@@ -1060,6 +1072,7 @@ export default function App() {
             <ComplaintManagement
               complaints={complaints}
               onResolveComplaint={handleResolveComplaint}
+              onDeleteComplaint={handleDeleteComplaint}
               onOpenAddComplaint={() => setIsComplaintModalOpen(true)}
             />
           )}
@@ -1067,6 +1080,7 @@ export default function App() {
           {curTab === 'visitors' && (
             <VisitorManagement
               visitors={visitors}
+              onDeleteVisitor={handleDeleteVisitor}
               onOpenAddVisitor={() => setIsVisitorModalOpen(true)}
             />
           )}

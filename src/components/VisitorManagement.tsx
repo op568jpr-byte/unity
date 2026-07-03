@@ -1,15 +1,17 @@
 import React from 'react';
-import { LogIn, UserX, UserPlus, Inbox, Calendar, Clock } from 'lucide-react';
+import { LogIn, UserX, UserPlus, Inbox, Calendar, Clock, Trash2 } from 'lucide-react';
 import { Visitor } from '../types';
 
 interface VisitorManagementProps {
   visitors: Visitor[];
   onOpenAddVisitor: () => void;
+  onDeleteVisitor: (id: number) => void;
 }
 
 export default function VisitorManagement({
   visitors,
-  onOpenAddVisitor
+  onOpenAddVisitor,
+  onDeleteVisitor
 }: VisitorManagementProps) {
 
   return (
@@ -42,12 +44,13 @@ export default function VisitorManagement({
               <th className="py-4.5 px-5">Contact Mobile</th>
               <th className="py-4.5 px-5">Log Date</th>
               <th className="py-4.5 px-5">Log Time</th>
+              <th className="py-4.5 px-5 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-550 bg-white">
             {visitors.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-12 text-center text-gray-400">
+                <td colSpan={8} className="py-12 text-center text-gray-400">
                   <Inbox className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                   No guest or visitation entries logged in warden registers today.
                 </td>
@@ -95,6 +98,21 @@ export default function VisitorManagement({
                       <Clock className="w-3.5 h-3.5" />
                       {v.time}
                     </span>
+                  </td>
+
+                  {/* Actions */}
+                  <td className="py-4 px-5 text-center">
+                    <button
+                      onClick={() => {
+                        if (confirm(`Delete visitor log for "${v.name}"?`)) {
+                          onDeleteVisitor(v.id);
+                        }
+                      }}
+                      className="p-1.5 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-lg cursor-pointer transition border border-rose-100"
+                      title="Delete visitor record"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </td>
                 </tr>
               ))

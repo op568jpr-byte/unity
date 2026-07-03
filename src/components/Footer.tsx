@@ -1,7 +1,7 @@
 import React from 'react';
 import { Facebook, Instagram, Youtube, Phone, ArrowUpRight, GraduationCap } from 'lucide-react';
 
-const logoImg = "/logo.png";
+const logoImg = "/logo.svg";
 
 interface FooterProps {
   onScrollTo: (id: string) => void;
@@ -108,7 +108,10 @@ export default function Footer({ onScrollTo, onOpenLogin }: FooterProps) {
 
         {/* Brand Bottom alignment */}
         <div className="pt-8 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between text-center sm:text-left gap-4 text-xs text-gray-500">
-          <p>© 2026 Unity Boys Hostel, Near JECRC College, Sanganer, Jaipur. All Rights Reserved.</p>
+          <div className="space-y-1">
+            <p>© 2026 Unity Boys Hostel, Near JECRC College, Sanganer, Jaipur. All Rights Reserved.</p>
+            <p className="text-[10px] text-gray-600">Website Designed & Developed by <span className="text-gray-400 font-semibold">Shiv Shankar Saini</span></p>
+          </div>
           <p>
             Made with <span className="text-[#D4AF37] font-bold">♥</span> for Students & competitive aspirants.
           </p>
