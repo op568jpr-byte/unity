@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Student, Payment, Complaint, Visitor, HostelSettings, UserSession } from '../types';
 
-const logoImg = "/logo.png";
+import logoImg from '../assets/logo.png';
 
 interface DashboardLayoutProps {
   session: UserSession;

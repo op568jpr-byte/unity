@@ -31,7 +31,7 @@ const convertYYYYMMDDToDDMMYYYY = (dateStr: string) => {
   return dateStr;
 };
 
-const logoImg = "/logo.png";
+import logoImg from '../assets/logo.png';
 
 interface StudentSelfRegistrationProps {
   students: Student[];
