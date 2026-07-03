@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LogIn, Menu, X } from 'lucide-react';
 
-const logoImg = "/src/assets/images/unity_hostel_logo_1781847359405.jpg";
+const logoImg = "/logo.png";
 
 interface HeaderProps {
   onOpenLogin: () => void;

@@ -31,7 +31,7 @@ const convertYYYYMMDDToDDMMYYYY = (dateStr: string) => {
   return dateStr;
 };
 
-const logoImg = "/src/assets/images/unity_hostel_logo_1781847359405.jpg";
+const logoImg = "/logo.png";
 
 interface StudentSelfRegistrationProps {
   students: Student[];
