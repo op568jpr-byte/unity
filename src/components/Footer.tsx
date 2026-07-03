@@ -1,8 +1,7 @@
 import React from 'react';
 import { Facebook, Instagram, Youtube, Phone, ArrowUpRight, GraduationCap } from 'lucide-react';
 
-import logoAsset from '../assets/logo.png';
-const logoImg = `${logoAsset}?v=5`;
+const logoImg = "/logo-new-v3.png?v=3";
 
 interface FooterProps {
   onScrollTo: (id: string) => void;
