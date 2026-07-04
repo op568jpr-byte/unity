@@ -212,15 +212,15 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
     
     // Fee Selection
     feePlan: '1 Month',
-    fee: defaultDoubleRent, // starting monthly rent
-    yearlyTotalFee: defaultDoubleRent * 12,
+    fee: 0, // starting monthly rent (no autofill)
+    yearlyTotalFee: 0,
     monthsCount: 1,
     discount: 0,
-    totalRent: defaultDoubleRent,
-    securityDeposit: 2000, // Standard safety deposit
+    totalRent: 0,
+    securityDeposit: 0, // Standard safety deposit (no autofill)
     electricityCharges: 0,
     otherCharges: 0,
-    finalPayableAmount: 9500, // Total Rent + Security
+    finalPayableAmount: 0, // Total Rent + Security
     
     // Payment Mode
     paymentMode: 'UPI' as any,
@@ -337,20 +337,9 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
   ]);
 
   const handleSharingChange = (val: RoomSharing) => {
-    let defaultFee = savedSettings.doubleRent || 6500;
-    if (val === 'Single') {
-      defaultFee = savedSettings.singleRent || 8500;
-    } else if (val === 'Triple') {
-      defaultFee = savedSettings.tripleRent || 5500;
-    } else if (val === 'Double') {
-      defaultFee = savedSettings.doubleRent || 6500;
-    }
-    
     setForm(prev => ({
       ...prev,
-      sharing: val,
-      fee: defaultFee,
-      yearlyTotalFee: defaultFee * 12
+      sharing: val
     }));
   };
 
@@ -387,6 +376,18 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
         if (onShowToast) onShowToast(msg, true);
         return;
       }
+      if (!form.aadhaar || !form.aadhaar.trim()) {
+        const msg = 'Aadhaar Card Number is mandatory! 💳⚠️';
+        setErrorMsg(msg);
+        if (onShowToast) onShowToast(msg, true);
+        return;
+      }
+      if (form.aadhaar.trim().length !== 12) {
+        const msg = 'Aadhaar Card Number must be exactly 12 digits! ⚠️';
+        setErrorMsg(msg);
+        if (onShowToast) onShowToast(msg, true);
+        return;
+      }
     }
     if (step === 2) {
       if (!form.father || !form.father.trim()) {
@@ -401,10 +402,24 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
         if (onShowToast) onShowToast(msg, true);
         return;
       }
+      if (!form.motherName || !form.motherName.trim()) {
+        const msg = "Please enter Mother Full Name! ⚠️";
+        setErrorMsg(msg);
+        if (onShowToast) onShowToast(msg, true);
+        return;
+      }
     }
     if (step === 3) {
       if (!form.room || !form.room.trim() || form.room === 'UNASSIGNED') {
         const msg = 'Please assign a valid Room Number before proceeding! ⚠️';
+        setErrorMsg(msg);
+        if (onShowToast) onShowToast(msg, true);
+        return;
+      }
+    }
+    if (step === 5) {
+      if (!form.studentAadhaarDoc || form.studentAadhaarDoc === 'Pending' || form.studentAadhaarDoc === 'Pending Submission') {
+        const msg = 'Student Aadhaar Card upload or status selection is mandatory! 💳⚠️';
         setErrorMsg(msg);
         if (onShowToast) onShowToast(msg, true);
         return;
@@ -658,7 +673,7 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Aadhaar Number</label>
+                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Aadhaar Number *</label>
                 <input
                   type="text"
                   placeholder="12 digit number"
@@ -666,6 +681,7 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                   value={form.aadhaar}
                   onChange={e => setForm({ ...form, aadhaar: e.target.value.replace(/\D/g, '') })}
                   className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white font-mono"
+                  required
                 />
               </div>
             </div>
@@ -847,13 +863,14 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Mother Name</label>
+                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Mother Name *</label>
                 <input
                   type="text"
                   placeholder="Mother full name"
                   value={form.motherName}
                   onChange={e => setForm({ ...form, motherName: e.target.value })}
                   className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white"
+                  required
                 />
               </div>
               <div>
@@ -1408,7 +1425,7 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 text-xs">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="font-black text-gray-800 block text-[11px]">4. Student Aadhaar Card</span>
+                    <span className="font-black text-gray-800 block text-[11px]">4. Student Aadhaar Card *</span>
                     <span className="text-[10px] text-gray-400">स्वयं का आधार कार्ड</span>
                   </div>
                   <div>

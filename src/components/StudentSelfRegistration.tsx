@@ -217,9 +217,9 @@ export default function StudentSelfRegistration({
     washroomType: 'Common',
 
     // New Fee structure & physical documents fields
-    yearlyTotalFee: defaultDoubleRent * 12,
+    yearlyTotalFee: 0,
     installmentType: 'Monthly',
-    fee: defaultDoubleRent,
+    fee: 0,
     policeVerification: '', // Pending or Base64
     hostelForm: '', // Pending or Base64
     agreementDoc: '', // Pending or Base64
@@ -233,26 +233,28 @@ export default function StudentSelfRegistration({
   }, []);
 
   const handleSharingChange = (val: RoomSharing) => {
-    let targetFee = savedSettings.doubleRent || 6500;
-    if (val === 'Single') {
-      targetFee = savedSettings.singleRent || 8500;
-    } else if (val === 'Triple') {
-      targetFee = savedSettings.tripleRent || 5500;
-    } else if (val === 'Double') {
-      targetFee = savedSettings.doubleRent || 6500;
-    }
     setForm(prev => ({ 
       ...prev, 
-      sharing: val,
-      fee: targetFee,
-      yearlyTotalFee: targetFee * 12
+      sharing: val
     }));
   };
 
   const nextStep = () => {
     if (step === 1) {
+      if (!form.profilePic) {
+        onShowToast('Student profile photo is mandatory! Please upload or capture a photo. 📸⚠️', true);
+        return;
+      }
       if (!form.name || !form.mobile) {
         onShowToast('Please enter your Full Name and Mobile Number! ⚠️', true);
+        return;
+      }
+      if (!form.aadhaar) {
+        onShowToast('Aadhaar National Card Number is mandatory! 💳⚠️', true);
+        return;
+      }
+      if (form.aadhaar.length !== 12) {
+        onShowToast('Aadhaar number must be exactly 12 digits! ⚠️', true);
         return;
       }
     }
@@ -263,14 +265,20 @@ export default function StudentSelfRegistration({
       }
     }
     if (step === 3) {
-      if (!form.father || !form.fatherMob || !form.emergencyMobile) {
-        onShowToast('Please fill in Parental & Emergency mobile numbers! ⚠️', true);
+      if (!form.father || !form.fatherMob || !form.motherName || !form.emergencyMobile) {
+        onShowToast('Please fill Father Details, Mother Full Name, and Emergency Mobile! ⚠️', true);
         return;
       }
     }
     if (step === 4) {
       if (!form.collegeName || !form.courseName) {
         onShowToast('Please enter your College Name and registered Course! 🎓', true);
+        return;
+      }
+    }
+    if (step === 5) {
+      if (!form.studentAadhaarDoc || form.studentAadhaarDoc === 'Pending Submission') {
+        onShowToast('Student Aadhaar Card photo upload is mandatory! 💳⚠️', true);
         return;
       }
     }
@@ -792,7 +800,7 @@ Warden verification pending.
 
   const handleFormSubmit = () => {
     // Calculated rent per installment based on selected plan or base rent
-    const standardFee = form.fee || (form.sharing === 'Triple' ? (savedSettings.tripleRent || 5500) : form.sharing === 'Single' ? (savedSettings.singleRent || 8500) : (savedSettings.doubleRent || 6500));
+    const standardFee = form.fee || 0;
     
     // Auto compile full address text block
     let fullAddr = `Permanent Address:\nHouse No: ${form.houseNo}, ${form.area ? form.area + ', ' : ''}${form.city}, ${form.state || 'Rajasthan'} - ${form.pinCode}`;
@@ -851,8 +859,8 @@ Warden verification pending.
       monthsCount: 1,
       discount: 0,
       totalRent: standardFee,
-      securityDeposit: 2000,
-      finalPayableAmount: standardFee + 2000,
+      securityDeposit: 0,
+      finalPayableAmount: standardFee,
 
       // New columns from user request
       yearlyTotalFee: form.yearlyTotalFee,
@@ -1095,7 +1103,7 @@ UNITY BOYS HOSTEL Admission details
 Lodger Name: ${submittedData.name}
 Mobile Number: ${submittedData.mobile}
 Submission Date: ${submittedData.date}
-Verification Status: Pending review by Warden
+Verification Status: Pending review by Management
 
 We've recorded your entry. Your bed will be allocated upon arrival.
 ===============================`;
@@ -1126,7 +1134,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                 <p className="truncate">👤 Lodger: <span className="font-extrabold">{submittedData.name}</span></p>
                 <p className="font-mono">📞 Phone: <span>{submittedData.mobile}</span></p>
                 <p className="font-mono">🗓️ Registered: <span>{submittedData.date}</span></p>
-                <p className="pt-1.5">⚡ Status: <span className="text-emerald-700 bg-emerald-100 border border-emerald-250 px-2 py-0.5 rounded-full font-black text-[10px]">Warden Checking</span></p>
+                <p className="pt-1.5">⚡ Status: <span className="text-emerald-700 bg-emerald-100 border border-emerald-250 px-2 py-0.5 rounded-full font-black text-[10px]">Management Checking</span></p>
               </div>
             </div>
 
@@ -1167,7 +1175,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
               className="w-full py-3 bg-[#25D366] font-bold text-xs sm:text-sm text-white rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition duration-150 flex items-center justify-center gap-2 cursor-pointer"
             >
               <Send className="w-4 h-4" />
-              Send Details to Warden
+              Send Details to Management
             </button>
             <button
               onClick={() => {
@@ -1457,7 +1465,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Aadhaar National Card Number</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Aadhaar National Card Number *</label>
                   <input 
                     type="text"
                     maxLength={12}
@@ -1465,6 +1473,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                     onChange={e => setForm({ ...form, aadhaar: e.target.value.replace(/\D/g, '') })}
                     placeholder="12-digit UID"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none text-xs sm:text-sm bg-white font-mono"
+                    required
                   />
                 </div>
                 <div>
@@ -1652,13 +1661,14 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Mother Full Name</label>
+                  <label className="block text-xs font-semibold text-gray-500 mb-1.5">Mother Full Name *</label>
                   <input 
                     type="text"
                     value={form.motherName}
                     onChange={e => setForm({ ...form, motherName: e.target.value })}
                     placeholder="Mother Name"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none text-xs sm:text-sm bg-white"
+                    required
                   />
                 </div>
                 <div>
@@ -2090,7 +2100,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                   <div className="border border-gray-150 rounded-2xl p-4 bg-gray-50 flex flex-col justify-between gap-3 text-xs">
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-extrabold text-gray-700 text-xs">4. Student Aadhaar Card (स्वयं का आधार)</span>
+                        <span className="font-extrabold text-gray-700 text-xs">4. Student Aadhaar Card (स्वयं का आधार) *</span>
                         <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.studentAadhaarDoc ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-805'}`}>
                           {form.studentAadhaarDoc ? 'Uploaded' : 'Pending'}
                         </span>
@@ -2280,7 +2290,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
 
               <div className="bg-white border border-gray-100 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
                 <div className="text-center sm:text-left">
-                  <span className="text-[10px] text-gray-400 block font-bold uppercase">Warden Admission Contacts</span>
+                  <span className="text-[10px] text-gray-400 block font-bold uppercase">Management Admission Contacts</span>
                   <span className="text-xs text-gray-700 font-bold block mt-0.5">{savedSettings.phone || "+91 82096 96820, +91 95215 12224"}</span>
                 </div>
                 <div className="bg-[#FF6B35]/10 text-[#FF6B35] text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider">
