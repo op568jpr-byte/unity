@@ -183,7 +183,7 @@ export default function SettingsPanel({
   };
 
   const handleDownloadCpanelZip = async () => {
-    onShowToast('Preparing GoDaddy cPanel-ready ZIP archive... 📦');
+    onShowToast('Preparing cPanel-ready ZIP archive... 📦');
     try {
       const indexHtmlContent = await generateStandaloneHTML(students, payments, settings, complaints, visitors, partnerWithdrawals, expenses);
       
@@ -194,15 +194,15 @@ export default function SettingsPanel({
       
       // Add a helpful deployment instructions file
       const instructions = `==========================================================
-   UNITY BOYS HOSTEL - GODADDY CPANEL DEPLOYMENT INSTRUCTIONS
+   UNITY BOYS HOSTEL - CPANEL DEPLOYMENT INSTRUCTIONS
 ==========================================================
 
-Follow these steps to host this web application on your GoDaddy cPanel:
+Follow these steps to host this web application on your cPanel:
 
-1. Log in to your GoDaddy Hosting Account and open the "cPanel File Manager".
+1. Log in to your Hosting Account and open the "File Manager".
 2. Navigate to your website's root public directory (typically "public_html").
-3. Upload this entire "unity_boys_hostel_cpanel.zip" file.
-4. Right-click the uploaded ZIP file inside the cPanel File Manager and click "Extract" (unzip).
+3. Upload this entire "unity_boys_hostel_site.zip" file.
+4. Right-click the uploaded ZIP file inside the File Manager and click "Extract" (unzip).
 5. Ensure the extracted "index.html" file sits directly inside the "public_html" folder.
 6. Delete the ZIP file after successful extraction to keep your space clean.
 
@@ -222,12 +222,12 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
       const url = URL.createObjectURL(content);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', 'unity_boys_hostel_cpanel.zip');
+      link.setAttribute('download', 'unity_boys_hostel_site.zip');
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-      onShowToast('GoDaddy cPanel ZIP downloaded successfully! 📦');
+      onShowToast('cPanel ZIP downloaded successfully! 📦');
     } catch (err) {
       console.error(err);
       onShowToast('Failed to generate cPanel ZIP! ⚠️', true);
@@ -1096,7 +1096,7 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
         </div>
       </div>
 
-      {/* 🌐 NEW: GODADDY CPANEL DEPLOYMENT & DOWNLOAD CENTER */}
+      {/* 🌐 NEW: WEB PORTAL EXPORTER & DOWNLOAD CENTER */}
       <div className="bg-white rounded-2xl border-2 border-emerald-500/30 p-6 shadow-md space-y-6">
         <div>
           <div className="flex items-center gap-2.5">
@@ -1105,10 +1105,10 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
             </span>
             <div>
               <h4 className="text-sm font-black text-slate-800 uppercase tracking-tight">
-                GoDaddy cPanel Hosting & Deployment Center 🌐
+                Live Website Exporter & cPanel Download Center 🌐
               </h4>
               <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                Download the exact files required to host Unity Boys Hostel website on GoDaddy cPanel!
+                Download the exact files required to host your Unity Boys Hostel website on any web hosting server!
               </p>
             </div>
           </div>
@@ -1118,7 +1118,7 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
           <div className="flex flex-wrap items-center justify-between gap-2.5">
             <div className="space-y-1">
               <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-400/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                HOSTING COMPATIBILITY: 100% SUCCESS ON GODADDY
+                HOSTING COMPATIBILITY: 100% SUCCESS ON ALL SERVERS
               </span>
               <h5 className="font-extrabold text-sm sm:text-base text-slate-100 flex items-center gap-2">
                 Live Firebase-Connected Website Builder 🚀
@@ -1128,7 +1128,7 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
           </div>
 
           <p className="text-xs text-slate-300 leading-normal font-medium">
-            GoDaddy cPanel par live database running website chalane ke liye, aap niche diye gaye buttons se direct <strong>index.html</strong> ya <strong>ZIP Archive</strong> download karein. Ise GoDaddy ke <code>public_html</code> folder me upload karte hi aapki live website, admission portal aur admin panel live ho jayenge!
+            Apni live database running website ko kisi bhi web server par chalane ke liye, aap niche diye gaye buttons se direct <strong>index.html</strong> ya <strong>ZIP Archive</strong> download karein. Ise apne hosting ke mukhya folder me upload karte hi aapki live website, admission portal aur admin panel live ho jayenge!
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
@@ -1137,7 +1137,7 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
               type="button"
               onClick={handleDownloadLiveIndexHtml}
               className="py-3.5 px-4 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white text-xs font-extrabold uppercase rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-emerald-500/15 border border-emerald-500/30"
-              title="Download standard index.html for GoDaddy cPanel"
+              title="Download standard index.html file"
             >
               <FileText className="w-4 h-4 text-white animate-bounce" />
               Download index.html File 🌐
@@ -1148,24 +1148,11 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
               type="button"
               onClick={handleDownloadCpanelZip}
               className="py-3.5 px-4 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 active:scale-95 text-white text-xs font-extrabold uppercase rounded-xl flex items-center justify-center gap-2 transition cursor-pointer shadow-lg shadow-indigo-500/15 border border-indigo-500/30"
-              title="Download index.html inside a ZIP file, ready to upload and extract in GoDaddy public_html"
+              title="Download index.html inside a ZIP file, ready to upload and extract"
             >
               <Download className="w-4 h-4 text-white" />
               Download cPanel ZIP Archive 📦
             </button>
-          </div>
-
-          <div className="bg-slate-900/60 p-4 rounded-xl border border-emerald-950 space-y-2.5 text-xs text-slate-300">
-            <h6 className="font-bold text-amber-400 flex items-center gap-1">
-              📝 GoDaddy cPanel Deployment Instructions (अपलोड कैसे करें):
-            </h6>
-            <ol className="list-decimal list-inside space-y-1.5 text-[11px] leading-relaxed">
-              <li>Apne GoDaddy Account me login karein aur <strong>cPanel File Manager</strong> open karein.</li>
-              <li>Mukhya public directory <strong>public_html</strong> ke andar jayein.</li>
-              <li>Yahan upar diye gaye <strong>Download cPanel ZIP Archive</strong> button se downloaded zip file upload karein.</li>
-              <li>Zip file ko select karke <strong>Extract</strong> (unzip) kar dein, jisse <code>index.html</code> file wahan nikal jaye.</li>
-              <li>Bas! Ab aapki domain website live Firebase database ke sath bilkul taiyar hai! ✨</li>
-            </ol>
           </div>
         </div>
 

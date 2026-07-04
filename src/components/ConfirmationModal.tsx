@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Trash2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (reason?: string) => void;
   title: string;
   message: string;
   confirmText?: string;
   cancelText?: string;
   type?: 'danger' | 'warning' | 'info';
+  requireReason?: boolean;
+  reasonPlaceholder?: string;
 }
 
 export default function ConfirmationModal({
@@ -21,27 +23,38 @@ export default function ConfirmationModal({
   message,
   confirmText = "Confirm",
   cancelText = "Cancel",
-  type = 'danger'
+  type = 'danger',
+  requireReason = false,
+  reasonPlaceholder = "Enter reason here..."
 }: ConfirmationModalProps) {
+  const [reason, setReason] = useState('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setReason('');
+    }
+  }, [isOpen]);
+
   const colorMap = {
     danger: {
       bg: 'bg-rose-50 border-rose-200 text-rose-800',
       iconBg: 'bg-rose-100 text-rose-600',
-      btn: 'bg-rose-600 hover:bg-rose-700 focus:ring-rose-500 text-white shadow-rose-200'
+      btn: 'bg-rose-600 hover:bg-rose-700 focus:ring-rose-500 text-white shadow-rose-200 disabled:opacity-50 disabled:cursor-not-allowed'
     },
     warning: {
       bg: 'bg-amber-50 border-amber-200 text-amber-800',
       iconBg: 'bg-amber-100 text-amber-600',
-      btn: 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500 text-white shadow-amber-200'
+      btn: 'bg-amber-600 hover:bg-amber-700 focus:ring-amber-500 text-white shadow-amber-200 disabled:opacity-50 disabled:cursor-not-allowed'
     },
     info: {
       bg: 'bg-blue-50 border-blue-200 text-blue-800',
       iconBg: 'bg-blue-100 text-blue-600',
-      btn: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 text-white shadow-blue-200'
+      btn: 'bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 text-white shadow-blue-200 disabled:opacity-50 disabled:cursor-not-allowed'
     }
   };
 
   const style = colorMap[type];
+  const isConfirmDisabled = requireReason && !reason.trim();
 
   return (
     <AnimatePresence>
@@ -84,6 +97,23 @@ export default function ConfirmationModal({
               </button>
             </div>
 
+            {/* Optional Reason Input */}
+            {requireReason && (
+              <div className="space-y-1.5">
+                <label className="block text-[10px] font-extrabold text-slate-600 uppercase tracking-wider">
+                  Reason for Deletion (हटाने का कारण) <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  value={reason}
+                  onChange={e => setReason(e.target.value)}
+                  placeholder={reasonPlaceholder}
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs border border-slate-200 focus:border-rose-500 rounded-xl outline-none resize-none font-medium text-slate-700"
+                  required
+                />
+              </div>
+            )}
+
             {/* Footer Buttons */}
             <div className="flex items-center justify-end gap-3 mt-2">
               <button
@@ -96,9 +126,10 @@ export default function ConfirmationModal({
               <button
                 type="button"
                 onClick={() => {
-                  onConfirm();
+                  onConfirm(reason);
                   onClose();
                 }}
+                disabled={isConfirmDisabled}
                 className={`px-5 py-2.5 text-xs font-black rounded-xl transition cursor-pointer shadow-md ${style.btn}`}
               >
                 {confirmText}

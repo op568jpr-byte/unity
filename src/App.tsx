@@ -601,12 +601,34 @@ export default function App() {
   };
 
   // Deleting records
-  const handleDeleteStudent = (id: number) => {
-    const studentName = students.find(s => s.id === id)?.name || 'Student';
+  const handleDeleteStudent = async (id: number, reason: string) => {
+    if (!session || session.role !== 'master') {
+      showToast('Only Master Admin can delete student records! ⚠️', true);
+      return;
+    }
+
+    const studentObj = students.find(s => s.id === id);
+    if (!studentObj) return;
+
+    const studentName = studentObj.name || 'Student';
+    
+    // Save to deleted students history in Firestore for audit log
+    try {
+      await saveDocument('deletedStudentsHistory', `${id}-${Date.now()}`, {
+        studentId: id,
+        studentName,
+        room: studentObj.room,
+        deletedAt: new Date().toISOString(),
+        deletedBy: session.name || 'Master Admin',
+        reason: reason || 'No reason provided'
+      });
+    } catch (err) {
+      console.error('Error saving deleted student log:', err);
+    }
+
     const newArr = students.filter(s => s.id !== id);
     handleStudentsUpdate(newArr);
     
-    // Also optional: let's filter related logs but preserve transaction numbers to avoid breaking historical totals
     showToast(`Removed registration file for ${studentName}. 🗑️`);
   };
 
@@ -623,10 +645,13 @@ export default function App() {
       const undoneStudents = students.map(s => {
         if (s.id === paymentToEdit.studentId) {
           const nextPaidSum = Math.max(0, s.paid - paymentToEdit.amount);
+          const totalExpected = s.finalPayableAmount !== undefined && s.finalPayableAmount > 0 
+            ? s.finalPayableAmount 
+            : (s.yearlyTotalFee !== undefined && s.yearlyTotalFee > 0 ? s.yearlyTotalFee : (s.fee || 0));
           return {
             ...s,
             paid: nextPaidSum,
-            due: Math.max(0, s.fee - nextPaidSum)
+            due: Math.max(0, totalExpected - nextPaidSum)
           };
         }
         return s;
@@ -636,10 +661,13 @@ export default function App() {
       const updatedStudents = undoneStudents.map(s => {
         if (s.id === fields.studentId) {
           const nextPaidSum = s.paid + fields.amount;
+          const totalExpected = s.finalPayableAmount !== undefined && s.finalPayableAmount > 0 
+            ? s.finalPayableAmount 
+            : (s.yearlyTotalFee !== undefined && s.yearlyTotalFee > 0 ? s.yearlyTotalFee : (s.fee || 0));
           return {
             ...s,
             paid: nextPaidSum,
-            due: Math.max(0, s.fee - nextPaidSum)
+            due: Math.max(0, totalExpected - nextPaidSum)
           };
         }
         return s;
@@ -694,10 +722,13 @@ export default function App() {
     const updatedStudents = students.map(s => {
       if (s.id === fields.studentId) {
         const nextPaidSum = s.paid + fields.amount;
+        const totalExpected = s.finalPayableAmount !== undefined && s.finalPayableAmount > 0 
+          ? s.finalPayableAmount 
+          : (s.yearlyTotalFee !== undefined && s.yearlyTotalFee > 0 ? s.yearlyTotalFee : (s.fee || 0));
         return {
           ...s,
           paid: nextPaidSum,
-          due: Math.max(0, s.fee - nextPaidSum)
+          due: Math.max(0, totalExpected - nextPaidSum)
         };
       }
       return s;
@@ -723,10 +754,13 @@ export default function App() {
     const revertedStudents = students.map(s => {
       if (s.id === pay.studentId) {
         const nextPaidSum = Math.max(0, s.paid - pay.amount);
+        const totalExpected = s.finalPayableAmount !== undefined && s.finalPayableAmount > 0 
+          ? s.finalPayableAmount 
+          : (s.yearlyTotalFee !== undefined && s.yearlyTotalFee > 0 ? s.yearlyTotalFee : (s.fee || 0));
         return {
           ...s,
           paid: nextPaidSum,
-          due: Math.max(0, s.fee - nextPaidSum)
+          due: Math.max(0, totalExpected - nextPaidSum)
         };
       }
       return s;
@@ -1051,6 +1085,7 @@ export default function App() {
                 setStudentToEdit(s);
                 setIsStudentModalOpen(true);
               }}
+              sessionRole={session?.role}
             />
           )}
 

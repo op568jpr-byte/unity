@@ -6,11 +6,12 @@ import ConfirmationModal from './ConfirmationModal';
 
 interface StudentManagementProps {
   students: Student[];
-  onDeleteStudent: (id: number) => void;
+  onDeleteStudent: (id: number, reason: string) => void;
   onOpenAddStudent: () => void;
   onViewDetails: (student: Student) => void;
   onShowToast?: (msg: string, isError?: boolean) => void;
   onEditStudent?: (student: Student) => void;
+  sessionRole?: string;
 }
 
 export default function StudentManagement({
@@ -19,7 +20,8 @@ export default function StudentManagement({
   onOpenAddStudent,
   onViewDetails,
   onShowToast,
-  onEditStudent
+  onEditStudent,
+  sessionRole
 }: StudentManagementProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [sharingFilter, setSharingFilter] = useState<string>('All');
@@ -239,13 +241,15 @@ export default function StudentManagement({
                         >
                           <Info className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={() => setStudentToDelete(s)}
-                          className="p-2 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-xl cursor-pointer transition border border-rose-100"
-                          title="Delete Record"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {sessionRole === 'master' && (
+                          <button
+                            onClick={() => setStudentToDelete(s)}
+                            className="p-2 bg-rose-50 text-rose-500 hover:bg-rose-100 rounded-xl cursor-pointer transition border border-rose-100"
+                            title="Delete Record"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -259,9 +263,9 @@ export default function StudentManagement({
       <ConfirmationModal
         isOpen={studentToDelete !== null}
         onClose={() => setStudentToDelete(null)}
-        onConfirm={() => {
+        onConfirm={(reason) => {
           if (studentToDelete) {
-            onDeleteStudent(studentToDelete.id);
+            onDeleteStudent(studentToDelete.id, reason || '');
           }
         }}
         title="Delete Student Record"
@@ -269,6 +273,8 @@ export default function StudentManagement({
         confirmText="Yes, Delete Record"
         cancelText="Cancel"
         type="danger"
+        requireReason={true}
+        reasonPlaceholder="लिखें कि छात्र को क्यों हटाया जा रहा है (उदा. कोर्स पूरा हुआ, हॉस्टल छोड़ दिया, आदि)..."
       />
     </div>
   );
