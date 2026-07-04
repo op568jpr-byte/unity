@@ -44,9 +44,19 @@ export default function DashboardHome({
   const cashCollectedAmount = payments.filter(p => p.mode === 'Cash').reduce((sum, p) => sum + p.amount, 0);
   const onlineCollectedAmount = payments.filter(p => p.mode !== 'Cash').reduce((sum, p) => sum + p.amount, 0);
 
-  // Helper to parse DD/MM/YYYY dates
+  // Helper to parse DD/MM/YYYY or YYYY-MM-DD dates
   const parseJoinDate = (dateStr: string) => {
     if (!dateStr) return new Date();
+    if (dateStr.includes('-')) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        // Usually YYYY-MM-DD
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+      }
+    }
     const parts = dateStr.split('/');
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
@@ -88,21 +98,49 @@ export default function DashboardHome({
   const getUpcomingInstallmentsCount = () => {
     let count = 0;
     students.forEach(s => {
+      let maxInstallments = 12;
       let interval = 1;
-      if (s.feePlan) {
-        const match = s.feePlan.match(/\d+/);
-        if (match) {
-          interval = parseInt(match[0]) || 1;
+
+      const instType = (s.installmentType || '').trim().toLowerCase();
+      if (instType === 'monthly') {
+        maxInstallments = 12;
+        interval = 1;
+      } else if (instType === '2 installments') {
+        maxInstallments = 2;
+        interval = 6;
+      } else if (instType === '3 installments') {
+        maxInstallments = 3;
+        interval = 4;
+      } else if (instType === '4 installments') {
+        maxInstallments = 4;
+        interval = 3;
+      } else if (instType === '6 installments') {
+        maxInstallments = 6;
+        interval = 2;
+      } else if (instType === 'one time' || instType === 'one-time') {
+        maxInstallments = 1;
+        interval = 12;
+      } else {
+        // Fallback to feePlan if available
+        if (s.feePlan) {
+          const match = s.feePlan.match(/\d+/);
+          if (match) {
+            interval = parseInt(match[0]) || 1;
+          }
         }
+        maxInstallments = Math.max(1, Math.floor(12 / interval));
       }
-      const maxInstallments = Math.max(1, Math.floor(12 / interval));
       
       let installmentAmount = 0;
       if (s.yearlyTotalFee !== undefined && s.yearlyTotalFee > 0) {
         installmentAmount = Math.round(s.yearlyTotalFee / maxInstallments);
       } else {
-        const monthlyFee = s.fee || 7500;
-        installmentAmount = monthlyFee * interval;
+        const isMonthly = !s.installmentType || s.installmentType.trim().toLowerCase() === 'monthly';
+        if (isMonthly) {
+          installmentAmount = s.fee || 7500;
+        } else {
+          installmentAmount = s.fee || 21000;
+        }
       }
 
       let cumulativeRequired = 0;
@@ -111,6 +149,7 @@ export default function DashboardHome({
         const paidSoFar = s.paid || 0;
         if (paidSoFar < cumulativeRequired) {
           count++;
+          break; // Only count the next upcoming/first unpaid installment
         }
       }
     });
@@ -125,24 +164,58 @@ export default function DashboardHome({
     const currentMonth = now.getMonth();
 
     students.forEach(s => {
+      let maxInstallments = 12;
       let interval = 1;
-      if (s.feePlan) {
-        const match = s.feePlan.match(/\d+/);
-        if (match) {
-          interval = parseInt(match[0]) || 1;
+
+      const instType = (s.installmentType || '').trim().toLowerCase();
+      if (instType === 'monthly') {
+        maxInstallments = 12;
+        interval = 1;
+      } else if (instType === '2 installments') {
+        maxInstallments = 2;
+        interval = 6;
+      } else if (instType === '3 installments') {
+        maxInstallments = 3;
+        interval = 4;
+      } else if (instType === '4 installments') {
+        maxInstallments = 4;
+        interval = 3;
+      } else if (instType === '6 installments') {
+        maxInstallments = 6;
+        interval = 2;
+      } else if (instType === 'one time' || instType === 'one-time') {
+        maxInstallments = 1;
+        interval = 12;
+      } else {
+        // Fallback to feePlan if available
+        if (s.feePlan) {
+          const match = s.feePlan.match(/\d+/);
+          if (match) {
+            interval = parseInt(match[0]) || 1;
+          }
         }
+        maxInstallments = Math.max(1, Math.floor(12 / interval));
       }
-      const maxInstallments = Math.max(1, Math.floor(12 / interval));
       
       let installmentAmount = 0;
       if (s.yearlyTotalFee !== undefined && s.yearlyTotalFee > 0) {
         installmentAmount = Math.round(s.yearlyTotalFee / maxInstallments);
       } else {
-        const monthlyFee = s.fee || 7500;
-        installmentAmount = monthlyFee * interval;
+        const isMonthly = !s.installmentType || s.installmentType.trim().toLowerCase() === 'monthly';
+        if (isMonthly) {
+          installmentAmount = s.fee || 7500;
+        } else {
+          installmentAmount = s.fee || 21000;
+        }
       }
 
-      const joinDateObj = parseJoinDate(s.joinDate || s.agreementStartDate);
+      // Determine base date according to monthly vs installment plan type
+      const isMonthly = !s.installmentType || s.installmentType.trim().toLowerCase() === 'monthly';
+      const rawDateStr = isMonthly 
+        ? (s.joinDate || s.agreementStartDate || '')
+        : (s.agreementStartDate || s.joinDate || '');
+      
+      const joinDateObj = parseJoinDate(rawDateStr);
 
       let cumulativeRequired = 0;
       for (let i = 1; i <= maxInstallments; i++) {
@@ -165,8 +238,11 @@ export default function DashboardHome({
         const dueMonth = d.getMonth();
         const isAlertActive = (currentYear > dueYear) || (currentYear === dueYear && currentMonth >= dueMonth);
 
-        if (isAlertActive && remainingAmount > 0) {
-          count++;
+        if (paidSoFar < cumulativeRequired) {
+          if (isAlertActive && remainingAmount > 0) {
+            count++;
+          }
+          break; // Stop checking future installments since this one is unpaid
         }
       }
     });

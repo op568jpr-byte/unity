@@ -10,12 +10,36 @@ interface DuePaymentsProps {
 export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
   const [upcomingSearch, setUpcomingSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState('All Months');
-  const [planFilter, setPlanFilter] = useState('All Plans');
-  const [statusFilter, setStatusFilter] = useState('All Statuses');
+  const [planFilter, setPlanFilter] = useState('All');
+  const [statusFilter, setStatusFilter] = useState('Pending');
   const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const [includePenalty, setIncludePenalty] = useState(true);
 
+  // Filter states for Outstanding Dues
+  const [outstandingSearch, setOutstandingSearch] = useState('');
+  const [installmentFilter, setInstallmentFilter] = useState('All');
+
   const dueStudents = students.filter(s => s.due > 0);
+
+  const filteredDueStudents = dueStudents.filter(s => {
+    const matchesSearch = outstandingSearch ? (
+      s.name.toLowerCase().includes(outstandingSearch.toLowerCase()) ||
+      s.room.toLowerCase().includes(outstandingSearch.toLowerCase())
+    ) : true;
+
+    if (installmentFilter === 'All') return matchesSearch;
+    
+    const type = (s.installmentType || 'Monthly').trim().toLowerCase();
+    
+    if (installmentFilter === 'Monthly') {
+      return matchesSearch && type === 'monthly';
+    }
+    if (installmentFilter === 'Installments') {
+      return matchesSearch && type !== 'monthly';
+    }
+    // Specific match like "One Time", "2 Installments" etc.
+    return matchesSearch && type === installmentFilter.toLowerCase();
+  });
 
   const showCopyToast = (msg: string) => {
     setCopyStatus(msg);
@@ -38,9 +62,9 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
   const downloadExcelDues = () => {
     try {
       let csv = "\uFEFF"; // UTF-8 BOM so Excel displays rupee symbols/accents correctly
-      csv += "Student Name,Room Number,Monthly Rent (INR),Paid So Far (INR),Outstanding Balance (INR),Student Mobile,Father Name,Father Mobile,City\n";
+      csv += "Student Name,Room Number,Monthly / Installment Payment (INR),Paid So Far (INR),Outstanding Balance (INR),Student Mobile,Father Name,Father Mobile,City\n";
       
-      dueStudents.forEach(s => {
+      filteredDueStudents.forEach(s => {
         const name = (s.name || '').replace(/"/g, '""');
         const room = (s.room || '').replace(/"/g, '""');
         const mobile = (s.mobile || '').replace(/"/g, '""');
@@ -249,7 +273,7 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
               <strong>Report Generated:</strong> ${nowStr}
             </div>
             <div>
-              <strong>Outstanding Accounts:</strong> ${dueStudents.length} Students Pending
+              <strong>Outstanding Accounts:</strong> ${filteredDueStudents.length} Students Pending
             </div>
           </div>
           <table>
@@ -258,7 +282,7 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
               <th style="width: 5%;">#</th>
               <th style="width: 25%;">Student Name</th>
               <th style="width: 15%;">Unit / Room</th>
-              <th style="width: 12%;">Assigned Rent</th>
+              <th style="width: 12%;">Monthly / Installment Fee</th>
               <th style="width: 12%;">Paid So Far</th>
               <th style="width: 12%;">Amount Due</th>
               <th style="width: 19%;">Contacts Summary</th>
@@ -271,7 +295,7 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
     let totalPaid = 0;
     let totalDue = 0;
 
-    dueStudents.forEach((s, idx) => {
+    filteredDueStudents.forEach((s, idx) => {
       totalRent += s.fee;
       totalPaid += s.paid;
       totalDue += s.due;
@@ -352,13 +376,13 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
     report += `   UNITY BOYS HOSTEL, JAIPUR\n`;
     report += `============================================\n`;
     report += `Date of Export : ${new Date().toLocaleString('en-IN')}\n`;
-    report += `Total Pending  : ${dueStudents.length} Students\n`;
+    report += `Total Pending  : ${filteredDueStudents.length} Students\n`;
     report += `--------------------------------------------\n\n`;
 
-    dueStudents.forEach((s, idx) => {
+    filteredDueStudents.forEach((s, idx) => {
       report += `${idx + 1}. STUDENT NAME : ${s.name}\n`;
       report += `   Room Number  : Room ${s.room}\n`;
-      report += `   Monthly Fee  : ₹${s.fee.toLocaleString('en-IN')}\n`;
+      report += `   Monthly/Installment Fee  : ₹${s.fee.toLocaleString('en-IN')}\n`;
       report += `   Amount Paid  : ₹${s.paid.toLocaleString('en-IN')}\n`;
       report += `   DUE BALANCE  : ₹${s.due.toLocaleString('en-IN')}\n`;
       report += `   Student Mob  : ${s.mobile || 'N/A'}\n`;
@@ -371,9 +395,19 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
     return report;
   };
 
-  // Helper to parse student's admission / join date (DD/MM/YYYY)
+  // Helper to parse student's admission / join date (DD/MM/YYYY or YYYY-MM-DD)
   const parseStudentJoinDate = (dateStr: string) => {
     if (!dateStr) return new Date(); // Fallback to current
+    if (dateStr.includes('-')) {
+      const parts = dateStr.split('-');
+      if (parts.length === 3) {
+        // Usually YYYY-MM-DD
+        const year = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const day = parseInt(parts[2], 10);
+        return new Date(year, month, day);
+      }
+    }
     const parts = dateStr.split('/');
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
@@ -393,6 +427,8 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
       dueDate: string;
       dueDateObj: Date;
       dueMonthLabel: string;
+      applicableMonthLabels: string[];
+      planLabel: string;
       amount: number;
       status: 'Paid' | 'Partial' | 'Upcoming';
       remainingAmount: number;
@@ -403,17 +439,69 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
 
-    students.forEach(s => {
-      // Parse interval from feePlan (e.g. '3 Month' or default to 1)
-      let interval = 1;
-      if (s.feePlan) {
-        const match = s.feePlan.match(/\d+/);
-        if (match) {
-          interval = parseInt(match[0]) || 1;
-        }
+    const getApplicableMonths = (start: Date, end: Date, isFirst: boolean): string[] => {
+      const months: string[] = [];
+      const curr = new Date(start);
+      if (!isFirst) {
+        curr.setMonth(curr.getMonth() + 1);
+      }
+      curr.setDate(1);
+      const endCompare = new Date(end);
+      endCompare.setDate(1);
+
+      while (curr <= endCompare) {
+        months.push(curr.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }));
+        curr.setMonth(curr.getMonth() + 1);
       }
 
-      const maxInstallments = Math.max(1, Math.floor(12 / interval));
+      const endLabel = end.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      if (!months.includes(endLabel)) {
+        months.push(endLabel);
+      }
+      return months;
+    };
+
+    students.forEach(s => {
+      let maxInstallments = 12;
+      let interval = 1;
+
+      const instType = (s.installmentType || '').trim().toLowerCase();
+      if (instType === 'monthly') {
+        maxInstallments = 12;
+        interval = 1;
+      } else if (instType === '2 installments') {
+        maxInstallments = 2;
+        interval = 6;
+      } else if (instType === '3 installments') {
+        maxInstallments = 3;
+        interval = 4;
+      } else if (instType === '4 installments') {
+        maxInstallments = 4;
+        interval = 3;
+      } else if (instType === '6 installments') {
+        maxInstallments = 6;
+        interval = 2;
+      } else if (instType === 'one time' || instType === 'one-time') {
+        maxInstallments = 1;
+        interval = 12;
+      } else {
+        // Fallback to feePlan if available
+        if (s.feePlan) {
+          const match = s.feePlan.match(/\d+/);
+          if (match) {
+            interval = parseInt(match[0]) || 1;
+          }
+        }
+        maxInstallments = Math.max(1, Math.floor(12 / interval));
+      }
+
+      // Calculate dynamic planLabel, e.g. "84000/4" or "₹84000/4"
+      let planLabel = s.feePlan || '1 Month';
+      if (s.yearlyTotalFee && s.yearlyTotalFee > 0) {
+        planLabel = `${s.yearlyTotalFee}/${maxInstallments}`;
+      } else if (s.fee && s.fee > 0) {
+        planLabel = `${s.fee}/Month`;
+      }
 
       // Calculate installment amount
       // If student has a defined yearly total fee, divide it by total installments
@@ -421,14 +509,24 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
       if (s.yearlyTotalFee !== undefined && s.yearlyTotalFee > 0) {
         installmentAmount = Math.round(s.yearlyTotalFee / maxInstallments);
       } else {
-        const monthlyFee = s.fee || 7500;
-        installmentAmount = monthlyFee * interval;
+        const isMonthly = !s.installmentType || s.installmentType.trim().toLowerCase() === 'monthly';
+        if (isMonthly) {
+          installmentAmount = s.fee || 7500;
+        } else {
+          installmentAmount = s.fee || 21000;
+        }
       }
       
-      // Parse individual student's admission date as start of installments
-      const joinDateObj = parseStudentJoinDate(s.joinDate || s.agreementStartDate);
+      // Determine base date according to monthly vs installment plan type
+      const isMonthly = !s.installmentType || s.installmentType.trim().toLowerCase() === 'monthly';
+      const rawDateStr = isMonthly 
+        ? (s.joinDate || s.agreementStartDate || '')
+        : (s.agreementStartDate || s.joinDate || '');
+      
+      const joinDateObj = parseStudentJoinDate(rawDateStr);
 
       let cumulativeRequired = 0;
+      let hasFoundUnpaid = false;
       for (let i = 1; i <= maxInstallments; i++) {
         cumulativeRequired += installmentAmount;
         
@@ -439,6 +537,13 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
         const dueDateStr = d.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const dueMonthLabel = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
         
+        // Compute previous installment date for applicable months calculation
+        const prevD = new Date(joinDateObj);
+        if (i > 1) {
+          prevD.setMonth(joinDateObj.getMonth() + (i - 2) * interval);
+        }
+        const applicableMonthLabels = getApplicableMonths(prevD, d, i === 1);
+
         let status: 'Paid' | 'Partial' | 'Upcoming' = 'Upcoming';
         let remainingAmount = installmentAmount;
         const paidSoFar = s.paid || 0;
@@ -460,6 +565,14 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
         const dueMonth = d.getMonth();
         const isAlertActive = (currentYear > dueYear) || (currentYear === dueYear && currentMonth >= dueMonth);
 
+        if (status !== 'Paid') {
+          if (hasFoundUnpaid) {
+            // Skip future unpaid installments to only display/track the next immediate unpaid installment
+            continue;
+          }
+          hasFoundUnpaid = true;
+        }
+
         installmentsList.push({
           id: `${s.id}-inst-${i}`,
           student: s,
@@ -467,6 +580,8 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
           dueDate: dueDateStr,
           dueDateObj: d,
           dueMonthLabel,
+          applicableMonthLabels,
+          planLabel,
           amount: installmentAmount,
           status,
           remainingAmount,
@@ -482,23 +597,33 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
   const installments = getInstallments();
 
   // Get unique months labels for filter dropdown
-  const uniqueMonths = ['All Months', ...Array.from(new Set(installments.map(inst => inst.dueMonthLabel)))];
+  const uniqueMonths = ['All Months', ...Array.from(new Set(installments.flatMap(inst => inst.applicableMonthLabels)))];
 
   // Filter installments
   const filteredInstallments = installments.filter(inst => {
     const matchesSearch = inst.student.name.toLowerCase().includes(upcomingSearch.toLowerCase()) || 
                           inst.student.room.toLowerCase().includes(upcomingSearch.toLowerCase());
-    const matchesMonth = monthFilter === 'All Months' || inst.dueMonthLabel === monthFilter;
-    const matchesPlan = planFilter === 'All Plans' || 
-                        (inst.student.feePlan && inst.student.feePlan.toLowerCase().includes(planFilter.replace(' Plan', '').toLowerCase()));
-    const matchesStatus = statusFilter === 'All Statuses' || inst.status === statusFilter;
+    const matchesMonth = monthFilter === 'All Months' || inst.applicableMonthLabels.includes(monthFilter);
+    let matchesPlan = true;
+    if (planFilter !== 'All') {
+      const type = (inst.student.installmentType || 'Monthly').trim().toLowerCase();
+      if (planFilter === 'Monthly') {
+        matchesPlan = type === 'monthly';
+      } else if (planFilter === 'Installments') {
+        matchesPlan = type !== 'monthly';
+      } else {
+        matchesPlan = type === planFilter.toLowerCase();
+      }
+    }
+    const matchesStatus = statusFilter === 'All Statuses' || 
+                          (statusFilter === 'Pending' ? inst.status !== 'Paid' : inst.status === statusFilter);
     return matchesSearch && matchesMonth && matchesPlan && matchesStatus;
   });
 
   const getUpcomingWhatsAppMsg = (inst: typeof installments[0], isFather: boolean = false) => {
     const name = isFather ? inst.student.father : inst.student.name;
     const penaltyText = includePenalty ? " समय पर जमा कराए अन्यथा पेनल्टी (penalty) लग जाएगी।" : "";
-    return `Hello ${name || 'Parent'}, an upcoming/pending payment reminder from Unity Boys Hostel, Jaipur.\n\nInstallment #${inst.installmentNum} of ₹${inst.remainingAmount} falls on ${inst.dueDate} according to the ${inst.student.feePlan || '1 Month'} installment schedule.${penaltyText}\n\nPlease clear the dues. Thank you!\n- Warden Office.`;
+    return `Hello ${name || 'Parent'}, an upcoming/pending payment reminder from Unity Boys Hostel, Jaipur.\n\nInstallment #${inst.installmentNum} of ₹${inst.remainingAmount} falls on ${inst.dueDate} according to the ${inst.planLabel} installment schedule.${penaltyText}\n\nPlease clear the dues. Thank you!\n- Warden Office.`;
   };
 
   const getUpcomingWhatsAppLink = (inst: typeof installments[0], isFather: boolean = false) => {
@@ -520,7 +645,7 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
     filteredInstallments.forEach((inst, idx) => {
       report += `${idx + 1}. STUDENT NAME : ${inst.student.name}\n`;
       report += `   Room Number  : Room ${inst.student.room}\n`;
-      report += `   Installment  : #${inst.installmentNum} of standard ${inst.student.feePlan || '1 Month'} cycle\n`;
+      report += `   Installment  : #${inst.installmentNum} of standard ${inst.planLabel} cycle\n`;
       report += `   Due Date     : ${inst.dueDate} (${inst.dueMonthLabel})\n`;
       report += `   Gross Amount : ₹${inst.amount.toLocaleString('en-IN')}\n`;
       report += `   Remaining    : ₹${inst.remainingAmount.toLocaleString('en-IN')}\n`;
@@ -542,7 +667,7 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
       filteredInstallments.forEach(inst => {
         const name = (inst.student.name || '').replace(/"/g, '""');
         const room = (inst.student.room || '').replace(/"/g, '""');
-        const plan = (inst.student.feePlan || '1 Month').replace(/"/g, '""');
+        const plan = (inst.planLabel).replace(/"/g, '""');
         const mobile = (inst.student.mobile || '').replace(/"/g, '""');
         const fatherMobile = (inst.student.fatherMob || '').replace(/"/g, '""');
         csv += `"${name}","Room ${room}","${plan}",${inst.installmentNum},"${inst.dueDate}","${inst.dueMonthLabel}",${inst.amount},${inst.remainingAmount},"${inst.status}","${mobile}","${fatherMobile}"\n`;
@@ -721,7 +846,7 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
           <td>${idx + 1}</td>
           <td><strong>${inst.student.name}</strong><br/><small style="color:#718096">Mob: ${inst.student.mobile}</small></td>
           <td>Room ${inst.student.room}</td>
-          <td>Installment #${inst.installmentNum} (${inst.student.feePlan || '1 Month'})</td>
+          <td>Installment #${inst.installmentNum} (${inst.planLabel})</td>
           <td><strong>${inst.dueDate}</strong><br/><small style="color:#718096">${inst.dueMonthLabel}</small></td>
           <td><strong>₹${inst.remainingAmount.toLocaleString('en-IN')}</strong></td>
           <td><span class="badge ${statusClass}">${inst.status.toUpperCase()}</span></td>
@@ -767,7 +892,7 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
               <AlertOctagon className="w-5 h-5 text-rose-500" />
               1. Outstanding Dues Ledger (बकाया फ़ीस विवरण)
             </h3>
-            <p className="text-xs text-gray-400 mt-0.5">List of students who currently have pending outstanding dues ({dueStudents.length} Students)</p>
+            <p className="text-xs text-gray-400 mt-0.5">List of students who currently have pending outstanding dues ({filteredDueStudents.length} of {dueStudents.length} Students)</p>
           </div>
           
           <div className="flex flex-wrap items-center gap-2">
@@ -783,7 +908,7 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
               <span className="sm:hidden">⚠️ Penalty</span>
             </label>
 
-            {dueStudents.length > 0 && (
+            {filteredDueStudents.length > 0 && (
               <>
                 <button
                   onClick={downloadExcelDues}
@@ -808,6 +933,44 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
           </div>
         </div>
 
+        {/* Filters & Control bar */}
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between bg-slate-50/50 p-4 rounded-xl border border-gray-150">
+          <div className="relative w-full md:max-w-xs">
+            <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 pointer-events-none text-gray-400">
+              <Users className="w-4 h-4" />
+            </span>
+            <input
+              type="text"
+              placeholder="Search student or room..."
+              value={outstandingSearch}
+              onChange={e => setOutstandingSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-rose-500 focus:ring-1 focus:ring-rose-500 bg-white font-semibold"
+            />
+          </div>
+
+          <div className="flex items-center gap-2 w-full md:w-auto">
+            {/* Installment Type Filter */}
+            <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-gray-150 w-full md:w-auto">
+              <Filter className="w-3.5 h-3.5 text-gray-400" />
+              <span className="text-[10px] uppercase tracking-wider text-gray-400 font-extrabold whitespace-nowrap">Plan / Mode:</span>
+              <select
+                value={installmentFilter}
+                onChange={e => setInstallmentFilter(e.target.value)}
+                className="w-full md:w-40 py-0.5 text-xs outline-none bg-white text-gray-750 font-bold cursor-pointer"
+              >
+                <option value="All">All (सभी प्रकार)</option>
+                <option value="Monthly">Monthly Only (केवल मासिक)</option>
+                <option value="Installments">Installment Only (केवल किस्त)</option>
+                <option value="One Time">One Time (एक बार)</option>
+                <option value="2 Installments">2 Installments</option>
+                <option value="3 Installments">3 Installments</option>
+                <option value="4 Installments">4 Installments</option>
+                <option value="6 Installments">6 Installments</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
         {/* Table register */}
         <div className="overflow-x-auto border border-gray-100 rounded-2xl">
           <table className="w-full text-left border-collapse font-sans text-xs sm:text-sm">
@@ -815,23 +978,23 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
               <tr className="bg-gradient-to-r from-[#1E2022] to-[#2E3135] text-white text-[11px] uppercase tracking-wider font-semibold">
                 <th className="py-4.5 px-5">Student / Name</th>
                 <th className="py-4.5 px-5">Room Assigned</th>
-                <th className="py-4.5 px-5">Total Monthly Rent</th>
+                <th className="py-4.5 px-5">Monthly / Installment Payment</th>
                 <th className="py-4.5 px-5">Paid so far</th>
                 <th className="py-4.5 px-5 text-right">Outstanding Balance</th>
                 <th className="py-4.5 px-5 text-center">Alert Warden commands</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-150 bg-white">
-              {dueStudents.length === 0 ? (
+              {filteredDueStudents.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-[#D4AF37]">
-                    <AlertCircle className="w-8 h-8 text-[#D4AF37]/45 mx-auto mb-2 animate-bounce" />
-                    <span className="font-extrabold block text-sm mb-1">🎉 Absolute Perfect Balance!</span>
-                    <span className="text-gray-400 text-xs">All active student ledgers have been completely synchronized and paid.</span>
+                    <AlertCircle className="w-8 h-8 text-[#D4AF37]/45 mx-auto mb-2" />
+                    <span className="font-extrabold block text-sm mb-1">🎉 No matching records found!</span>
+                    <span className="text-gray-400 text-xs">Either there are no students with pending dues, or none match the selected filters.</span>
                   </td>
                 </tr>
               ) : (
-                dueStudents.map((s) => (
+                filteredDueStudents.map((s) => (
                   <tr key={s.id} className="hover:bg-rose-50/20 transition-all">
                     
                     {/* Name block */}
@@ -854,7 +1017,10 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
 
                     {/* Rent */}
                     <td className="py-4 px-5 font-semibold text-gray-650">
-                      ₹{s.fee.toLocaleString('en-IN')}
+                      <div>
+                        <span>₹{s.fee.toLocaleString('en-IN')}</span>
+                        <span className="block text-[10px] text-gray-400 font-bold mt-0.5">({s.installmentType || 'Monthly'})</span>
+                      </div>
                     </td>
 
                     {/* Paid */}
@@ -1030,19 +1196,20 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
 
             {/* Plan Filter */}
             <div className="flex items-center gap-1.5 bg-white px-2.5 py-1.5 rounded-xl border border-gray-150">
-              <span className="text-[10px] uppercase tracking-wider text-gray-400 font-extrabold px-1.5 whitespace-nowrap">Plan:</span>
+              <span className="text-[10px] uppercase tracking-wider text-gray-400 font-extrabold px-1.5 whitespace-nowrap">Plan / Mode:</span>
               <select
                 value={planFilter}
                 onChange={e => setPlanFilter(e.target.value)}
-                className="w-full py-0.5 text-xs outline-none bg-white text-gray-700 font-bold cursor-pointer"
+                className="w-full py-0.5 text-xs outline-none bg-white text-gray-750 font-bold cursor-pointer"
               >
-                <option value="All Plans">All Plans</option>
-                <option value="1 Month">1 Month</option>
-                <option value="2 Month">2 Month</option>
-                <option value="3 Month">3 Month</option>
-                <option value="4 Month">4 Month</option>
-                <option value="6 Month">6 Month</option>
-                <option value="12 Month">12 Month</option>
+                <option value="All">All (सभी प्रकार)</option>
+                <option value="Monthly">Monthly Only (केवल मासिक)</option>
+                <option value="Installments">Installment Only (केवल किस्त)</option>
+                <option value="One Time">One Time (एक बार)</option>
+                <option value="2 Installments">2 Installments</option>
+                <option value="3 Installments">3 Installments</option>
+                <option value="4 Installments">4 Installments</option>
+                <option value="6 Installments">6 Installments</option>
               </select>
             </div>
 
@@ -1054,10 +1221,11 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
                 onChange={e => setStatusFilter(e.target.value)}
                 className="w-full py-0.5 text-xs outline-none bg-white text-gray-700 font-bold cursor-pointer"
               >
-                <option value="All Statuses">All Statuses</option>
-                <option value="Upcoming">Upcoming (Not Paid)</option>
-                <option value="Partial">Partial Paid</option>
-                <option value="Paid">Fully Paid</option>
+                <option value="Pending">Pending / Unpaid (बकाया)</option>
+                <option value="All Statuses">All Statuses (सभी)</option>
+                <option value="Upcoming">Upcoming Only (केवल आगामी)</option>
+                <option value="Partial">Partial Paid (आंशिक भुगतान)</option>
+                <option value="Paid">Fully Paid (पूर्ण भुगतान)</option>
               </select>
             </div>
           </div>
@@ -1107,7 +1275,7 @@ export default function DuePayments({ students, viewMode }: DuePaymentsProps) {
                     {/* Installment count */}
                     <td className="py-3.5 px-5">
                       <div className="flex flex-col">
-                        <span className="font-bold text-gray-700 text-xs">Plan: {inst.student.feePlan || '1 Month'}</span>
+                        <span className="font-bold text-gray-700 text-xs">Plan: {inst.planLabel}</span>
                         <span className="text-[10px] text-gray-400 font-medium">Installment #{inst.installmentNum}</span>
                       </div>
                     </td>
