@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { Crown, User, Lock, LogIn, ArrowLeft, Shield, Sparkles, KeySquare, HelpCircle, CheckCircle2, AlertTriangle, Key } from 'lucide-react';
 
+import { HostelSettings } from '../types';
+
 interface AdminLoginProps {
   onClose: () => void;
   onLoginSuccess: (session: { role: 'master' | 'staff'; name: string; user: string }) => void;
   onShowToast: (msg: string, isError?: boolean) => void;
+  settings?: HostelSettings;
+  onSaveSettings?: (updated: HostelSettings) => void;
 }
 
-export default function AdminLogin({ onClose, onLoginSuccess, onShowToast }: AdminLoginProps) {
+export default function AdminLogin({ onClose, onLoginSuccess, onShowToast, settings, onSaveSettings }: AdminLoginProps) {
   const [role, setRole] = useState<'master' | 'staff'>('master');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -24,10 +28,10 @@ export default function AdminLogin({ onClose, onLoginSuccess, onShowToast }: Adm
   const [generatedOtpHint, setGeneratedOtpHint] = useState<string | null>(null);
 
   const getStoredCreds = () => {
-    const masterU = localStorage.getItem('ubh_creds_master_u') || 'admin';
-    const masterP = localStorage.getItem('ubh_creds_master_p') || 'admin123';
-    const staffU = localStorage.getItem('ubh_creds_staff_u') || 'staff';
-    const staffP = localStorage.getItem('ubh_creds_staff_p') || 'staff123';
+    const masterU = settings?.masterUsername || localStorage.getItem('ubh_creds_master_u') || 'admin';
+    const masterP = settings?.masterPassword || localStorage.getItem('ubh_creds_master_p') || 'admin123';
+    const staffU = settings?.staffUsername || localStorage.getItem('ubh_creds_staff_u') || 'staff';
+    const staffP = settings?.staffPassword || localStorage.getItem('ubh_creds_staff_p') || 'staff123';
     
     return {
       master: { u: masterU, p: masterP, name: 'Master Admin (Full Control)' },
@@ -108,7 +112,18 @@ export default function AdminLogin({ onClose, onLoginSuccess, onShowToast }: Adm
     const passKey = forgotRole === 'master' ? 'ubh_creds_master_p' : 'ubh_creds_staff_p';
     localStorage.setItem(passKey, newPassword);
 
-    onShowToast('Password updated successfully! Welcome to login with new secret! 🌟');
+    // Also update globally synced settings if handler exists
+    if (settings && onSaveSettings) {
+      const updated = { ...settings };
+      if (forgotRole === 'master') {
+        updated.masterPassword = newPassword;
+      } else {
+        updated.staffPassword = newPassword;
+      }
+      onSaveSettings(updated);
+    }
+
+    onShowToast('Password updated successfully and synced with live database! 🌟');
     
     // Reset forgot state & back to login
     setIsForgotMode(false);

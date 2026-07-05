@@ -59,11 +59,19 @@ export default function SettingsPanel({
   }, [settings]);
   
   // Credentials modification state
-  const [masterUser, setMasterUser] = useState(localStorage.getItem('ubh_creds_master_u') || 'admin');
-  const [masterPass, setMasterPass] = useState(localStorage.getItem('ubh_creds_master_p') || 'admin123');
-  const [staffUser, setStaffUser] = useState(localStorage.getItem('ubh_creds_staff_u') || 'staff');
-  const [staffPass, setStaffPass] = useState(localStorage.getItem('ubh_creds_staff_p') || 'staff123');
-  const [recoveryKey, setRecoveryKey] = useState(localStorage.getItem('ubh_creds_recovery_key') || 'A040619932024Z');
+  const [masterUser, setMasterUser] = useState(settings.masterUsername || localStorage.getItem('ubh_creds_master_u') || 'admin');
+  const [masterPass, setMasterPass] = useState(settings.masterPassword || localStorage.getItem('ubh_creds_master_p') || 'admin123');
+  const [staffUser, setStaffUser] = useState(settings.staffUsername || localStorage.getItem('ubh_creds_staff_u') || 'staff');
+  const [staffPass, setStaffPass] = useState(settings.staffPassword || localStorage.getItem('ubh_creds_staff_p') || 'staff123');
+  const [recoveryKey, setRecoveryKey] = useState(settings.recoveryKey || localStorage.getItem('ubh_creds_recovery_key') || 'A040619932024Z');
+
+  React.useEffect(() => {
+    if (settings.masterUsername) setMasterUser(settings.masterUsername);
+    if (settings.masterPassword) setMasterPass(settings.masterPassword);
+    if (settings.staffUsername) setStaffUser(settings.staffUsername);
+    if (settings.staffPassword) setStaffPass(settings.staffPassword);
+    if (settings.recoveryKey) setRecoveryKey(settings.recoveryKey);
+  }, [settings]);
 
   const handleUpdateCreds = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,7 +88,18 @@ export default function SettingsPanel({
     localStorage.setItem('ubh_creds_staff_u', staffUser);
     localStorage.setItem('ubh_creds_staff_p', staffPass);
     localStorage.setItem('ubh_creds_recovery_key', recoveryKey.trim());
-    onShowToast('Login Credentials & Recovery Key successfully updated in storage! 🔐');
+
+    // Save to Firestore synced settings
+    onSaveSettings({
+      ...settings,
+      masterUsername: masterUser,
+      masterPassword: masterPass,
+      staffUsername: staffUser,
+      staffPassword: staffPass,
+      recoveryKey: recoveryKey.trim()
+    });
+
+    onShowToast('Login Credentials & Recovery Key successfully updated and synced with live database! 🔐');
   };
 
   // Notepad export custom state

@@ -243,7 +243,12 @@ export const DEFAULT_SETTINGS: HostelSettings = {
   adBannerUrls: [],
   adBannerPdfUrl: '',
   adBannerPdfName: '',
-  adBannerText: ''
+  adBannerText: '',
+  masterUsername: 'admin',
+  masterPassword: 'admin123',
+  staffUsername: 'staff',
+  staffPassword: 'staff123',
+  recoveryKey: 'A040619932024Z'
 };
 
 export const INITIAL_PARTNER_WITHDRAWALS: PartnerWithdrawal[] = [];

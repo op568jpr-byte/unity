@@ -261,6 +261,7 @@ export default function App() {
     const unsubSettings = setupSettingsSync(
       (data) => {
         setSettings(data);
+        safeStorage.setItem('ubh_settings', JSON.stringify(data));
       },
       DEFAULT_SETTINGS
     );
@@ -1033,6 +1034,8 @@ export default function App() {
           onClose={() => setCurView('website')}
           onLoginSuccess={handleSessionLogin}
           onShowToast={showToast}
+          settings={settings}
+          onSaveSettings={handleSaveSettings}
         />
       )}
 

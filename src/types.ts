@@ -184,6 +184,13 @@ export interface HostelSettings {
   adBannerPdfName?: string;
   adBannerText?: string;
   showAdBanner?: boolean;
+
+  // Synced Credentials
+  masterUsername?: string;
+  masterPassword?: string;
+  staffUsername?: string;
+  staffPassword?: string;
+  recoveryKey?: string;
 }
 
 export interface PartnerWithdrawal {
