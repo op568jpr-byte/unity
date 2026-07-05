@@ -1263,6 +1263,47 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                 </div>
               </div>
 
+              {/* Electricity Sub-Meter Setup */}
+              <div className="pt-3.5 border-t border-dashed border-gray-200">
+                <span className="text-[11px] font-black uppercase text-gray-500 tracking-wider block mb-2">⚡ Electricity Sub-Meter Setup (बिजली सब-मीटर सेटअप)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 mb-0.5">Starting Meter Reading (शुरूआती मीटर रीडिंग)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={form.elecLastReading || 0}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        setForm({ 
+                          ...form, 
+                          elecLastReading: isNaN(val) ? 0 : val,
+                          elecLastReadingDate: form.elecLastReadingDate || new Date().toLocaleDateString('en-IN')
+                        });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none font-bold text-gray-800 bg-white text-xs sm:text-sm"
+                      placeholder="e.g. 0, 120, 350"
+                    />
+                    <span className="text-[9px] text-gray-400 leading-none block mt-1">Starting reading of the sub-meter assigned to this student</span>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-400 mb-0.5">Tariff Rate per Unit (दर प्रति यूनिट ₹)</label>
+                    <input
+                      type="number"
+                      step="any"
+                      value={form.elecRatePerUnit || 10}
+                      onChange={e => {
+                        const val = parseFloat(e.target.value);
+                        setForm({ ...form, elecRatePerUnit: isNaN(val) ? 10 : val });
+                      }}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none font-bold text-gray-800 bg-white text-xs sm:text-sm"
+                      placeholder="e.g. 10"
+                    />
+                    <span className="text-[9px] text-gray-400 leading-none block mt-1">Default is ₹10 per unit</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Total final payable */}
               <div className="pt-3 border-t border-dashed border-gray-200 flex items-center justify-between">
                 <span className="text-gray-500 font-bold text-xs sm:text-sm">Final Payable Admission Amount</span>
