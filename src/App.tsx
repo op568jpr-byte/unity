@@ -271,8 +271,26 @@ export default function App() {
       const cachedSession = safeStorage.getItem('ubh_session');
       if (cachedSession) {
         const parsedS = JSON.parse(cachedSession);
-        setSession(parsedS);
-        setCurView('dashboard');
+        const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth < 1024;
+        let isExpired = false;
+        
+        if (!isMobile && parsedS.lastActivity) {
+          const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes
+          if (Date.now() - parsedS.lastActivity > INACTIVITY_TIMEOUT) {
+            isExpired = true;
+          }
+        }
+
+        if (isExpired) {
+          safeStorage.removeItem('ubh_session');
+        } else {
+          if (!isMobile && !parsedS.lastActivity) {
+            parsedS.lastActivity = Date.now();
+            safeStorage.setItem('ubh_session', JSON.stringify(parsedS));
+          }
+          setSession(parsedS);
+          setCurView('dashboard');
+        }
       }
     } catch (e) {
       console.error('Error loading cached session:', e);
@@ -296,6 +314,54 @@ export default function App() {
       unsubSettings();
     };
   }, []);
+
+  // Session inactivity check for desktop
+  useEffect(() => {
+    if (!session) return;
+
+    // Check if mobile or desktop
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth < 1024;
+    if (isMobile) return; // Do not expire on mobile
+
+    const INACTIVITY_TIMEOUT = 15 * 60 * 1000; // 15 minutes of inactivity
+    let timeoutId: any;
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        handleSessionLogout();
+        showToast('Session expired due to inactivity! Please login again. 🔐', true);
+      }, INACTIVITY_TIMEOUT);
+
+      // Also update stored session with last activity time to preserve across page refreshes
+      try {
+        const cached = safeStorage.getItem('ubh_session');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          parsed.lastActivity = Date.now();
+          safeStorage.setItem('ubh_session', JSON.stringify(parsed));
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+
+    // Track user interaction events
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    events.forEach(event => {
+      window.addEventListener(event, resetTimer, { passive: true });
+    });
+
+    // Run once at start to set the initial timeout
+    resetTimer();
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      events.forEach(event => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [session]);
 
   // --- ALERT SENDER UTILITY ---
   const showToast = (msg: string, isError = false) => {
@@ -523,8 +589,13 @@ export default function App() {
   };
 
   const handleSessionLogin = (sessionData: UserSession) => {
-    setSession(sessionData);
-    safeStorage.setItem('ubh_session', JSON.stringify(sessionData));
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent) || window.innerWidth < 1024;
+    const dataToSave = {
+      ...sessionData,
+      lastActivity: !isMobile ? Date.now() : undefined
+    };
+    setSession(dataToSave);
+    safeStorage.setItem('ubh_session', JSON.stringify(dataToSave));
     setCurView('dashboard');
     setCurTab('dashboard');
   };
