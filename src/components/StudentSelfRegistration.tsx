@@ -5,7 +5,8 @@ import {
   Camera, Upload, X, Trash2, Check, RefreshCw, Printer, Download, Eye
 } from 'lucide-react';
 import { Student, RoomSharing, HostelSettings } from '../types';
-import { downloadBase64File } from '../utils/download';
+import { downloadBase64File, printBase64File } from '../utils/download';
+import DocumentViewer from './DocumentViewer';
 
 const convertDDMMYYYYToYYYYMMDD = (dateStr: string) => {
   if (!dateStr) return '';
@@ -50,6 +51,41 @@ export default function StudentSelfRegistration({
 }: StudentSelfRegistrationProps) {
   const [step, setStep] = useState(1);
   const [submittedData, setSubmittedData] = useState<{name: string, mobile: string, date: string, profilePic?: string, fullForm?: any} | null>(null);
+
+  // Document Viewer states
+  const [docViewerOpen, setDocViewerOpen] = useState(false);
+  const [docViewerData, setDocViewerData] = useState('');
+  const [docViewerTitle, setDocViewerTitle] = useState('');
+
+  // Hijack window.open to use our DocumentViewer component inside sandbox
+  useEffect(() => {
+    const originalOpen = window.open;
+    window.open = function(url?: string | URL, target?: string, features?: string): Window | null {
+      if (url && (String(url).startsWith('http') || String(url).startsWith('https'))) {
+        return originalOpen.call(window, url, target, features);
+      }
+      
+      const mockWin = {
+        document: {
+          write: (htmlContent: string) => {
+            const srcMatch = htmlContent.match(/src="([^"]+)"/);
+            if (srcMatch && srcMatch[1]) {
+              setDocViewerData(srcMatch[1]);
+              setDocViewerTitle("Uploaded Document Proof");
+              setDocViewerOpen(true);
+            }
+          },
+          close: () => {},
+          open: () => {}
+        },
+        close: () => {}
+      };
+      return mockWin as any;
+    };
+    return () => {
+      window.open = originalOpen;
+    };
+  }, []);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -114,10 +150,13 @@ export default function StudentSelfRegistration({
         onShowToast("Image size must be less than 2MB! ⚠️", true);
         return;
       }
+      const objectUrl = URL.createObjectURL(file);
+      setForm((prev: any) => ({ ...prev, profilePic: objectUrl }));
+      onShowToast("Profile photo uploaded successfully! 📸");
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setForm((prev: any) => ({ ...prev, profilePic: reader.result as string }));
-        onShowToast("Profile photo uploaded successfully! 📸");
       };
       reader.readAsDataURL(file);
     }
@@ -134,10 +173,13 @@ export default function StudentSelfRegistration({
         onShowToast("File size must be less than 2MB! ⚠️", true);
         return;
       }
+      const objectUrl = URL.createObjectURL(file);
+      setForm(prev => ({ ...prev, [fieldName]: objectUrl }));
+      onShowToast("Document file loaded successfully! 📂✅");
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setForm(prev => ({ ...prev, [fieldName]: reader.result as string }));
-        onShowToast("Document file loaded successfully! 📂✅");
       };
       reader.readAsDataURL(file);
     }
@@ -279,6 +321,10 @@ export default function StudentSelfRegistration({
     if (step === 5) {
       if (!form.studentAadhaarDoc || form.studentAadhaarDoc === 'Pending Submission') {
         onShowToast('Student Aadhaar Card photo upload is mandatory! 💳⚠️', true);
+        return;
+      }
+      if (!form.fatherAadhaarDoc || form.fatherAadhaarDoc === 'Pending Submission') {
+        onShowToast("Father's Aadhaar Card photo upload is mandatory! 💳⚠️", true);
         return;
       }
     }
@@ -1034,10 +1080,9 @@ Warden verification pending.
                       <button
                         type="button"
                         onClick={() => {
-                          const win = window.open();
-                          if (win) {
-                            win.document.write(`<img src="${rawDoc}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
-                          }
+                          setDocViewerData(rawDoc);
+                          setDocViewerTitle(`${data.name || 'Student'}'s ${doc.label}`);
+                          setDocViewerOpen(true);
                         }}
                         className="px-1 py-0.5 bg-white hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded text-[8px] font-extrabold cursor-pointer"
                         title="View Document"
@@ -1047,25 +1092,7 @@ Warden verification pending.
                       <button
                         type="button"
                         onClick={() => {
-                          const win = window.open('', '_blank');
-                          if (win) {
-                            win.document.write(`
-                              <html>
-                                <body style="margin:0; display:flex; align-items:center; justify-content:center; background:#fff;">
-                                  <img src="${rawDoc}" style="max-width:100%; max-height:100%; object-fit:contain;" />
-                                  <\${'script'}>
-                                    window.onload = function() {
-                                      setTimeout(function() {
-                                        window.print();
-                                        window.close();
-                                      }, 300);
-                                    }
-                                  </\${'script'}>
-                                </body>
-                              </html>
-                            `);
-                            win.document.close();
-                          }
+                          printBase64File(rawDoc, `${data.name || 'Student'}'s ${doc.label}`);
                         }}
                         className="px-1 py-0.5 bg-sky-600 hover:bg-sky-700 text-white rounded text-[8px] font-extrabold cursor-pointer"
                         title="Print this document copy"
@@ -1861,11 +1888,12 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                       </div>
                       <p className="text-[10px] text-gray-400 leading-normal">Submit character validation verified by local police station.</p>
                     </div>
-                    {form.policeVerification ? (
-                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200">
+                    {form.policeVerification && (
+                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200 mb-2">
                         <div className="w-10 h-10 rounded overflow-hidden border cursor-pointer hover:opacity-85" onClick={() => {
-                          const win = window.open();
-                          if (win) win.document.write(`<img src="${form.policeVerification}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                          setDocViewerData(form.policeVerification);
+                          setDocViewerTitle(`${form.name || 'Student'}'s Police Verification`);
+                          setDocViewerOpen(true);
                         }}>
                           <img src={form.policeVerification} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         </div>
@@ -1874,8 +1902,9 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open();
-                              if (win) win.document.write(`<img src="${form.policeVerification}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                              setDocViewerData(form.policeVerification);
+                              setDocViewerTitle(`${form.name || 'Student'}'s Police Verification`);
+                              setDocViewerOpen(true);
                             }}
                             className="text-[#FF6B35] hover:underline cursor-pointer"
                           >
@@ -1895,25 +1924,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open('', '_blank');
-                              if (win) {
-                                win.document.write(`
-                                  <html>
-                                    <body style="margin:0; display:flex; align-items:center; justify-content:center; background:#fff;">
-                                      <img src="${form.policeVerification}" style="max-width:100%; max-height:100%; object-fit:contain;" />
-                                      <\${'script'}>
-                                        window.onload = function() {
-                                          setTimeout(function() {
-                                            window.print();
-                                            window.close();
-                                          }, 300);
-                                        }
-                                      </\${'script'}>
-                                    </body>
-                                  </html>
-                                `);
-                                win.document.close();
-                              }
+                              printBase64File(form.policeVerification, `${form.name || 'Student'}'s Police Verification`);
                             }}
                             className="text-sky-600 hover:underline cursor-pointer"
                           >
@@ -1922,14 +1933,13 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button type="button" onClick={() => removeDoc('policeVerification')} className="text-red-500 hover:underline cursor-pointer">Remove</button>
                         </div>
                       </div>
-                    ) : (
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={e => handleDocUpload('policeVerification', e.target.files?.[0] || null)}
-                        className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer" 
-                      />
                     )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={e => handleDocUpload('policeVerification', e.target.files?.[0] || null)}
+                      className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer w-full" 
+                    />
                   </div>
 
                   {/* Document 2: Hostel Form */}
@@ -1943,11 +1953,12 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                       </div>
                       <p className="text-[10px] text-gray-400 leading-normal">Scanned copy of filled offline Admission Application docket.</p>
                     </div>
-                    {form.hostelForm ? (
-                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200">
+                    {form.hostelForm && (
+                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200 mb-2">
                         <div className="w-10 h-10 rounded overflow-hidden border cursor-pointer hover:opacity-85" onClick={() => {
-                          const win = window.open();
-                          if (win) win.document.write(`<img src="${form.hostelForm}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                          setDocViewerData(form.hostelForm);
+                          setDocViewerTitle(`${form.name || 'Student'}'s Hostel Admission Form`);
+                          setDocViewerOpen(true);
                         }}>
                           <img src={form.hostelForm} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         </div>
@@ -1956,8 +1967,9 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open();
-                              if (win) win.document.write(`<img src="${form.hostelForm}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                              setDocViewerData(form.hostelForm);
+                              setDocViewerTitle(`${form.name || 'Student'}'s Hostel Admission Form`);
+                              setDocViewerOpen(true);
                             }}
                             className="text-[#FF6B35] hover:underline cursor-pointer"
                           >
@@ -1977,25 +1989,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open('', '_blank');
-                              if (win) {
-                                win.document.write(`
-                                  <html>
-                                    <body style="margin:0; display:flex; align-items:center; justify-content:center; background:#fff;">
-                                      <img src="${form.hostelForm}" style="max-width:100%; max-height:100%; object-fit:contain;" />
-                                      <\${'script'}>
-                                        window.onload = function() {
-                                          setTimeout(function() {
-                                            window.print();
-                                            window.close();
-                                          }, 300);
-                                        }
-                                      </\${'script'}>
-                                    </body>
-                                  </html>
-                                `);
-                                win.document.close();
-                              }
+                              printBase64File(form.hostelForm, `${form.name || 'Student'}'s Hostel Admission Form`);
                             }}
                             className="text-sky-600 hover:underline cursor-pointer"
                           >
@@ -2004,14 +1998,13 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button type="button" onClick={() => removeDoc('hostelForm')} className="text-red-500 hover:underline cursor-pointer">Remove</button>
                         </div>
                       </div>
-                    ) : (
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={e => handleDocUpload('hostelForm', e.target.files?.[0] || null)}
-                        className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer" 
-                      />
                     )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={e => handleDocUpload('hostelForm', e.target.files?.[0] || null)}
+                      className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer w-full" 
+                    />
                   </div>
 
                   {/* Document 3: Agreement Stay Deed */}
@@ -2025,11 +2018,12 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                       </div>
                       <p className="text-[10px] text-gray-400 leading-normal">Signed terms deed of hostel living contract.</p>
                     </div>
-                    {form.agreementDoc ? (
-                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200">
+                    {form.agreementDoc && (
+                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200 mb-2">
                         <div className="w-10 h-10 rounded overflow-hidden border cursor-pointer hover:opacity-85" onClick={() => {
-                          const win = window.open();
-                          if (win) win.document.write(`<img src="${form.agreementDoc}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                          setDocViewerData(form.agreementDoc);
+                          setDocViewerTitle(`${form.name || 'Student'}'s Stay Lease Agreement`);
+                          setDocViewerOpen(true);
                         }}>
                           <img src={form.agreementDoc} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         </div>
@@ -2038,8 +2032,9 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open();
-                              if (win) win.document.write(`<img src="${form.agreementDoc}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                              setDocViewerData(form.agreementDoc);
+                              setDocViewerTitle(`${form.name || 'Student'}'s Stay Lease Agreement`);
+                              setDocViewerOpen(true);
                             }}
                             className="text-[#FF6B35] hover:underline cursor-pointer"
                           >
@@ -2059,25 +2054,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open('', '_blank');
-                              if (win) {
-                                win.document.write(`
-                                  <html>
-                                    <body style="margin:0; display:flex; align-items:center; justify-content:center; background:#fff;">
-                                      <img src="${form.agreementDoc}" style="max-width:100%; max-height:100%; object-fit:contain;" />
-                                      <\${'script'}>
-                                        window.onload = function() {
-                                          setTimeout(function() {
-                                            window.print();
-                                            window.close();
-                                          }, 300);
-                                        }
-                                      </\${'script'}>
-                                    </body>
-                                  </html>
-                                `);
-                                win.document.close();
-                              }
+                              printBase64File(form.agreementDoc, `${form.name || 'Student'}'s Stay Lease Agreement`);
                             }}
                             className="text-sky-600 hover:underline cursor-pointer"
                           >
@@ -2086,14 +2063,13 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button type="button" onClick={() => removeDoc('agreementDoc')} className="text-red-500 hover:underline cursor-pointer">Remove</button>
                         </div>
                       </div>
-                    ) : (
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={e => handleDocUpload('agreementDoc', e.target.files?.[0] || null)}
-                        className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer" 
-                      />
                     )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={e => handleDocUpload('agreementDoc', e.target.files?.[0] || null)}
+                      className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer w-full" 
+                    />
                   </div>
 
                   {/* Document 4: Student Aadhaar Card */}
@@ -2107,11 +2083,12 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                       </div>
                       <p className="text-[10px] text-gray-400 leading-normal">Mandatory Government identity photo verification.</p>
                     </div>
-                    {form.studentAadhaarDoc ? (
-                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200">
+                    {form.studentAadhaarDoc && (
+                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200 mb-2">
                         <div className="w-10 h-10 rounded overflow-hidden border cursor-pointer hover:opacity-85" onClick={() => {
-                          const win = window.open();
-                          if (win) win.document.write(`<img src="${form.studentAadhaarDoc}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                          setDocViewerData(form.studentAadhaarDoc);
+                          setDocViewerTitle(`${form.name || 'Student'}'s Student Aadhaar Card`);
+                          setDocViewerOpen(true);
                         }}>
                           <img src={form.studentAadhaarDoc} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         </div>
@@ -2120,8 +2097,9 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open();
-                              if (win) win.document.write(`<img src="${form.studentAadhaarDoc}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                              setDocViewerData(form.studentAadhaarDoc);
+                              setDocViewerTitle(`${form.name || 'Student'}'s Student Aadhaar Card`);
+                              setDocViewerOpen(true);
                             }}
                             className="text-[#FF6B35] hover:underline cursor-pointer"
                           >
@@ -2141,25 +2119,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open('', '_blank');
-                              if (win) {
-                                win.document.write(`
-                                  <html>
-                                    <body style="margin:0; display:flex; align-items:center; justify-content:center; background:#fff;">
-                                      <img src="${form.studentAadhaarDoc}" style="max-width:100%; max-height:100%; object-fit:contain;" />
-                                      <\${'script'}>
-                                        window.onload = function() {
-                                          setTimeout(function() {
-                                            window.print();
-                                            window.close();
-                                          }, 300);
-                                        }
-                                      </\${'script'}>
-                                    </body>
-                                  </html>
-                                `);
-                                win.document.close();
-                              }
+                              printBase64File(form.studentAadhaarDoc, `${form.name || 'Student'}'s Student Aadhaar Card`);
                             }}
                             className="text-sky-600 hover:underline cursor-pointer"
                           >
@@ -2168,32 +2128,32 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button type="button" onClick={() => removeDoc('studentAadhaarDoc')} className="text-red-500 hover:underline cursor-pointer">Remove</button>
                         </div>
                       </div>
-                    ) : (
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={e => handleDocUpload('studentAadhaarDoc', e.target.files?.[0] || null)}
-                        className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer" 
-                      />
                     )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={e => handleDocUpload('studentAadhaarDoc', e.target.files?.[0] || null)}
+                      className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer w-full" 
+                    />
                   </div>
 
                   {/* Document 5: Father Aadhaar Card */}
                   <div className="border border-gray-150 rounded-2xl p-4 bg-gray-50 flex flex-col justify-between gap-3 text-xs md:col-span-2">
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-extrabold text-gray-700 text-xs">5. Father's Aadhaar Card (पिता का आधार कार्ड)</span>
+                        <span className="font-extrabold text-gray-700 text-xs">5. Father's Aadhaar Card (पिता का आधार कार्ड) *</span>
                         <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.fatherAadhaarDoc ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-805'}`}>
                           {form.fatherAadhaarDoc ? 'Uploaded' : 'Pending'}
                         </span>
                       </div>
                       <p className="text-[10px] text-gray-400 leading-normal">Emergency guardian identity validation document.</p>
                     </div>
-                    {form.fatherAadhaarDoc ? (
-                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200">
+                    {form.fatherAadhaarDoc && (
+                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200 mb-2">
                         <div className="w-10 h-10 rounded overflow-hidden border cursor-pointer hover:opacity-85" onClick={() => {
-                          const win = window.open();
-                          if (win) win.document.write(`<img src="${form.fatherAadhaarDoc}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                          setDocViewerData(form.fatherAadhaarDoc);
+                          setDocViewerTitle(`${form.name || 'Student'}'s Father's Aadhaar Card`);
+                          setDocViewerOpen(true);
                         }}>
                           <img src={form.fatherAadhaarDoc} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         </div>
@@ -2202,8 +2162,9 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open();
-                              if (win) win.document.write(`<img src="${form.fatherAadhaarDoc}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
+                              setDocViewerData(form.fatherAadhaarDoc);
+                              setDocViewerTitle(`${form.name || 'Student'}'s Father's Aadhaar Card`);
+                              setDocViewerOpen(true);
                             }}
                             className="text-[#FF6B35] hover:underline cursor-pointer"
                           >
@@ -2223,41 +2184,22 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const win = window.open('', '_blank');
-                              if (win) {
-                                win.document.write(`
-                                  <html>
-                                    <body style="margin:0; display:flex; align-items:center; justify-content:center; background:#fff;">
-                                      <img src="${form.fatherAadhaarDoc}" style="max-width:100%; max-height:100%; object-fit:contain;" />
-                                      <\${'script'}>
-                                        window.onload = function() {
-                                          setTimeout(function() {
-                                            window.print();
-                                            window.close();
-                                          }, 300);
-                                        }
-                                      </\${'script'}>
-                                    </body>
-                                  </html>
-                                `);
-                                win.document.close();
-                              }
+                              printBase64File(form.fatherAadhaarDoc, `${form.name || 'Student'}'s Father's Aadhaar Card`);
                             }}
                             className="text-sky-600 hover:underline cursor-pointer"
                           >
                             Print
                           </button>
-                          <button type="button" onClick={() => removeDoc('fatherAadhaarDoc')} className="text-red-500 hover:underline cursor-pointer">Remove</button>
+                          <button type="button" onClick={() => removeDoc('fatherAadhaarDoc')} className="text-[#FF6B35] hover:underline cursor-pointer">Remove</button>
                         </div>
                       </div>
-                    ) : (
-                      <input 
-                        type="file" 
-                        accept="image/*" 
-                        onChange={e => handleDocUpload('fatherAadhaarDoc', e.target.files?.[0] || null)}
-                        className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer" 
-                      />
                     )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={e => handleDocUpload('fatherAadhaarDoc', e.target.files?.[0] || null)}
+                      className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer w-full" 
+                    />
                   </div>
 
                 </div>
@@ -2334,6 +2276,13 @@ We've recorded your entry. Your bed will be allocated upon arrival.
         </div>
 
       </div>
+
+      <DocumentViewer
+        isOpen={docViewerOpen}
+        onClose={() => setDocViewerOpen(false)}
+        documentData={docViewerData}
+        title={docViewerTitle}
+      />
     </div>
   );
 }

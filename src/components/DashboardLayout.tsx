@@ -21,6 +21,7 @@ interface DashboardLayoutProps {
   onChangeTab: (tab: string) => void;
   children: React.ReactNode;
   isFirebaseConnected?: boolean;
+  isQuotaExceeded?: boolean;
 }
 
 export default function DashboardLayout({
@@ -36,7 +37,8 @@ export default function DashboardLayout({
   currentTab,
   onChangeTab,
   children,
-  isFirebaseConnected = true
+  isFirebaseConnected = true,
+  isQuotaExceeded = false
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
@@ -396,6 +398,40 @@ export default function DashboardLayout({
 
         {/* Inner dynamic view pages */}
         <main className="p-6 sm:p-8 flex-1">
+          {isQuotaExceeded && (
+            <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200/60 shadow-xs animate-fadeIn text-slate-800">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2.5 bg-amber-100 rounded-xl text-amber-750 mt-0.5 shrink-0">
+                    <Zap className="w-5 h-5 fill-amber-400 stroke-amber-700" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs sm:text-sm font-black text-amber-900 tracking-tight flex items-center gap-2 flex-wrap">
+                      Local Resilience Mode Active (स्थानीय डेटा सुरक्षा मोड सक्रिय)
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-bold bg-amber-200 text-amber-900 border border-amber-300">
+                        <span className="w-1.5 h-1.5 bg-amber-600 rounded-full animate-pulse"></span>
+                        Device Cache Safe
+                      </span>
+                    </h4>
+                    <p className="text-[10px] sm:text-xs text-amber-805 font-semibold mt-1 leading-relaxed max-w-4xl">
+                      The Firestore database has reached its daily free query quota. <strong>Don't worry—your work is safe!</strong> 
+                      All new student registrations, receipts, complaints, and electric readings remain 100% operational. They are securely cached on your device and will auto-sync to the cloud once the daily limit resets.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5 self-start md:self-center shrink-0">
+                  <a 
+                    href="https://console.firebase.google.com/project/heroic-sunlight-0n50x/firestore/databases/ai-studio-unityboyshostel-e29bd770-adbc-4056-b0ae-0851b39dea2b/data?openUpgradeDialog=true"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-bold text-[10px] sm:text-xs shadow-md shadow-amber-500/20 hover:shadow-amber-500/40 transition duration-150 cursor-pointer"
+                  >
+                    Upgrade Database ↗
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
           {children}
         </main>
       </div>

@@ -8,7 +8,8 @@ import {
   FileText, Upload, Trash2, Download, X
 } from 'lucide-react';
 import { Student, HostelSettings, Payment, Complaint, MessMenu, MessMenuItem } from '../types';
-import { downloadBase64File } from '../utils/download';
+import { downloadBase64File, printBase64File } from '../utils/download';
+import DocumentViewer from './DocumentViewer';
 
 interface StudentFeeDuesLookupProps {
   students: Student[];
@@ -72,6 +73,11 @@ export default function StudentFeeDuesLookup({
   // Student Portal tab
   // 'dashboard' | 'mess' | 'ledger' | 'complaints' | 'documents' | 'security'
   const [portalTab, setPortalTab] = useState<'dashboard' | 'mess' | 'ledger' | 'complaints' | 'documents' | 'security'>('dashboard');
+
+  // Document Viewer states
+  const [docViewerOpen, setDocViewerOpen] = useState(false);
+  const [docViewerData, setDocViewerData] = useState('');
+  const [docViewerTitle, setDocViewerTitle] = useState('');
 
   // Interactive payment
   const [customAmount, setCustomAmount] = useState<string>('');
@@ -1395,10 +1401,9 @@ export default function StudentFeeDuesLookup({
                                       <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                                         <button 
                                           onClick={() => {
-                                            const win = window.open();
-                                            if (win) {
-                                              win.document.write(`<img src="${docValue}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
-                                            }
+                                            setDocViewerData(docValue || '');
+                                            setDocViewerTitle(`${matchedStudent?.name || 'Student'}'s ${doc.label}`);
+                                            setDocViewerOpen(true);
                                           }}
                                           title="View Original Size" 
                                           className="p-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 cursor-pointer transition"
@@ -1445,14 +1450,19 @@ export default function StudentFeeDuesLookup({
                                       <>
                                         <button 
                                           onClick={() => {
-                                            const win = window.open();
-                                            if (win) {
-                                              win.document.write(`<img src="${docValue}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
-                                            }
+                                            setDocViewerData(docValue || '');
+                                            setDocViewerTitle(`${matchedStudent?.name || 'Student'}'s ${doc.label}`);
+                                            setDocViewerOpen(true);
                                           }}
                                           className="flex-1 py-1.5 border border-slate-800 text-gray-300 hover:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider transition flex items-center justify-center gap-1 cursor-pointer"
                                         >
                                           <Eye className="w-3.5 h-3.5" /> View
+                                        </button>
+                                        <button 
+                                          onClick={() => printBase64File(docValue || '', `${matchedStudent?.name || 'Student'}'s ${doc.label}`)}
+                                          className="flex-1 py-1.5 border border-slate-800 text-sky-400 hover:bg-slate-800 rounded-xl text-[10px] font-black uppercase tracking-wider transition flex items-center justify-center gap-1 cursor-pointer"
+                                        >
+                                          <Printer className="w-3.5 h-3.5" /> Print
                                         </button>
                                         <button 
                                           onClick={() => downloadBase64File(docValue || '', `${matchedStudent.name}_${doc.key}.png`)}
@@ -1636,6 +1646,13 @@ export default function StudentFeeDuesLookup({
           </motion.div>
         )}
       </AnimatePresence>
+
+      <DocumentViewer
+        isOpen={docViewerOpen}
+        onClose={() => setDocViewerOpen(false)}
+        documentData={docViewerData}
+        title={docViewerTitle}
+      />
     </div>
   );
 }

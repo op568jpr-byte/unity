@@ -31,8 +31,18 @@ export async function saveDocument(collectionName: string, id: string | number, 
   try {
     const docRef = doc(db, collectionName, id.toString());
     await setDoc(docRef, data);
-  } catch (error) {
-    console.error(`Error saving document to ${collectionName}:`, error);
+  } catch (error: any) {
+    const isQuota = error?.message?.includes('Quota exceeded') || 
+      error?.code?.includes('resource-exhausted') || 
+      String(error).includes('Quota exceeded') ||
+      String(error).includes('quota');
+
+    if (isQuota) {
+      console.warn(`Firestore quota reached while saving to ${collectionName}. Work cached locally.`, error.message || error);
+      window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: collectionName } }));
+    } else {
+      console.error(`Error saving document to ${collectionName}:`, error);
+    }
     throw error;
   }
 }
@@ -42,8 +52,18 @@ export async function deleteDocument(collectionName: string, id: string | number
   try {
     const docRef = doc(db, collectionName, id.toString());
     await deleteDoc(docRef);
-  } catch (error) {
-    console.error(`Error deleting document from ${collectionName}:`, error);
+  } catch (error: any) {
+    const isQuota = error?.message?.includes('Quota exceeded') || 
+      error?.code?.includes('resource-exhausted') || 
+      String(error).includes('Quota exceeded') ||
+      String(error).includes('quota');
+
+    if (isQuota) {
+      console.warn(`Firestore quota reached while deleting from ${collectionName}. Work cached locally.`, error.message || error);
+      window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: collectionName } }));
+    } else {
+      console.error(`Error deleting document from ${collectionName}:`, error);
+    }
     throw error;
   }
 }
@@ -82,8 +102,18 @@ export function setupCollectionSync<T>(
 
         // Mark as seeded in Firestore
         await setDoc(seedRef, { ...seededData, [collectionName]: true }, { merge: true });
-      } catch (e) {
-        console.error(`Error checking seeding status for ${collectionName}:`, e);
+      } catch (e: any) {
+        const isQuota = e?.message?.includes('Quota exceeded') || 
+          e?.code?.includes('resource-exhausted') || 
+          String(e).includes('Quota exceeded') ||
+          String(e).includes('quota');
+
+        if (isQuota) {
+          console.warn(`Firestore quota reached while checking seeding status for ${collectionName}. Using fallback:`, e.message || e);
+          window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: collectionName } }));
+        } else {
+          console.error(`Error checking seeding status for ${collectionName}:`, e);
+        }
         onUpdate([]);
       }
     } else {
@@ -93,8 +123,18 @@ export function setupCollectionSync<T>(
       });
       onUpdate(list);
     }
-  }, (error) => {
-    console.error(`Error syncing collection ${collectionName}:`, error);
+  }, (error: any) => {
+    const isQuota = error?.message?.includes('Quota exceeded') || 
+      error?.code?.includes('resource-exhausted') || 
+      String(error).includes('Quota exceeded') ||
+      String(error).includes('quota');
+
+    if (isQuota) {
+      console.warn(`Firestore quota reached for syncing ${collectionName}. Using cached device data:`, error.message || error);
+      window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: collectionName } }));
+    } else {
+      console.error(`Error syncing collection ${collectionName}:`, error);
+    }
   });
 }
 
@@ -112,7 +152,17 @@ export function setupSettingsSync(
     } else {
       onUpdate(snapshot.data());
     }
-  }, (error) => {
-    console.error('Error syncing settings:', error);
+  }, (error: any) => {
+    const isQuota = error?.message?.includes('Quota exceeded') || 
+      error?.code?.includes('resource-exhausted') || 
+      String(error).includes('Quota exceeded') ||
+      String(error).includes('quota');
+
+    if (isQuota) {
+      console.warn('Firestore quota reached for syncing settings. Using cached device data:', error.message || error);
+      window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: 'settings' } }));
+    } else {
+      console.error('Error syncing settings:', error);
+    }
   });
 }

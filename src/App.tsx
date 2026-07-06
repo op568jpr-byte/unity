@@ -4,7 +4,7 @@ import {
   Building2, Users, IndianRupee, MapPin, 
   Phone, Globe, Info, Compass, ShieldAlert, Sparkles, Check, FileText, Download, Printer
 } from 'lucide-react';
-import { downloadBase64File } from './utils/download';
+import { downloadBase64File, printBase64File } from './utils/download';
 import { 
   setupCollectionSync, 
   setupSettingsSync, 
@@ -59,6 +59,7 @@ import VisitorForm from './components/VisitorForm';
 import StudentSelfRegistration from './components/StudentSelfRegistration';
 import StudentFeeDuesLookup from './components/StudentFeeDuesLookup';
 import MessMenuManagement from './components/MessMenuManagement';
+import DocumentViewer from './components/DocumentViewer';
 
 // --- SAFE STORAGE HELPERS ---
 const safeStorage = {
@@ -161,6 +162,7 @@ export default function App() {
   });
   const [session, setSession] = useState<UserSession | null>(null);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
 
   // --- NAVIGATION STATE ROUTER ---
   // curView: 'website' | 'login' | 'dashboard' | 'student-registration' | 'student-dues-lookup'
@@ -177,6 +179,9 @@ export default function App() {
   const [selectedPrintPayment, setSelectedPrintPayment] = useState<Payment | null>(null);
   const [selectedViewStudent, setSelectedViewStudent] = useState<Student | null>(null);
   const [studentToEdit, setStudentToEdit] = useState<Student | null>(null);
+  const [docViewerOpen, setDocViewerOpen] = useState(false);
+  const [docViewerData, setDocViewerData] = useState('');
+  const [docViewerTitle, setDocViewerTitle] = useState('');
   const [paymentToEdit, setPaymentToEdit] = useState<Payment | null>(null);
 
   // --- TOAST NOTIFICATIONS MANAGER ---
@@ -304,6 +309,11 @@ export default function App() {
       setCurView('student-dues-lookup');
     }
 
+    const handleQuotaExceeded = () => {
+      setIsQuotaExceeded(true);
+    };
+    window.addEventListener('firestore-quota-exceeded', handleQuotaExceeded);
+
     return () => {
       unsubStudents();
       unsubPayments();
@@ -312,6 +322,7 @@ export default function App() {
       unsubWithdrawals();
       unsubExpenses();
       unsubSettings();
+      window.removeEventListener('firestore-quota-exceeded', handleQuotaExceeded);
     };
   }, []);
 
@@ -1125,6 +1136,7 @@ export default function App() {
           onChangeTab={setCurTab}
           onOpenQuickModal={(type) => openQuickActionModal(type)}
           isFirebaseConnected={isFirebaseConnected}
+          isQuotaExceeded={isQuotaExceeded}
         >
           {/* Dashboard router Tab rendering */}
           {curTab === 'dashboard' && (
@@ -1863,10 +1875,9 @@ export default function App() {
                           {hasDoc ? (
                             <div className="w-10 h-10 rounded-lg overflow-hidden border border-gray-200 flex-shrink-0 bg-white">
                               <img src={rawDoc} alt={doc.label} className="w-full h-full object-cover cursor-pointer hover:scale-110 transition duration-150" onClick={() => {
-                                const win = window.open();
-                                if (win) {
-                                  win.document.write(`<img src="${rawDoc}" style="max-width:100%; max-height:100%; display:block; margin:auto;" />`);
-                                }
+                                setDocViewerData(rawDoc);
+                                setDocViewerTitle(`${selectedViewStudent.name}'s ${doc.label}`);
+                                setDocViewerOpen(true);
                               }} referrerPolicy="no-referrer" />
                             </div>
                           ) : (
@@ -1897,10 +1908,9 @@ export default function App() {
                             </button>
                              <button
                               onClick={() => {
-                                const win = window.open();
-                                if (win) {
-                                  win.document.write(`<iframe src="${rawDoc}" frameborder="0" style="border:0; top:0px; left:0px; bottom:0px; right:0px; width:100%; height:100%;" allowfullscreen></iframe>`);
-                                }
+                                setDocViewerData(rawDoc);
+                                setDocViewerTitle(`${selectedViewStudent.name}'s ${doc.label}`);
+                                setDocViewerOpen(true);
                               }}
                               className="p-1.5 bg-white border border-gray-250 text-gray-650 rounded-lg hover:bg-gray-100 hover:text-black transition cursor-pointer"
                               title="See Doc Fullscreen"
@@ -1909,25 +1919,7 @@ export default function App() {
                             </button>
                             <button
                               onClick={() => {
-                                const win = window.open('', '_blank');
-                                if (win) {
-                                  win.document.write(`
-                                    <html>
-                                      <body style="margin:0; display:flex; align-items:center; justify-content:center; background:#fff;">
-                                        <img src="${rawDoc}" style="max-width:100%; max-height:100%; object-fit:contain;" />
-                                        ${'<' + 'script' + '>'}
-                                          window.onload = function() {
-                                            setTimeout(function() {
-                                              window.print();
-                                              window.close();
-                                            }, 300);
-                                          }
-                                        ${'<' + '/' + 'script' + '>'}
-                                      </body>
-                                    </html>
-                                  `);
-                                  win.document.close();
-                                }
+                                printBase64File(rawDoc, `${selectedViewStudent.name || 'Student'}'s ${doc.label}`);
                               }}
                               className="p-1.5 bg-[#FF6B35] text-white rounded-lg hover:bg-orange-600 transition cursor-pointer"
                               title="Print Document Proof"
@@ -1954,6 +1946,13 @@ export default function App() {
           </div>
         )}
       </Modal>
+
+      <DocumentViewer
+        isOpen={docViewerOpen}
+        onClose={() => setDocViewerOpen(false)}
+        documentData={docViewerData}
+        title={docViewerTitle}
+      />
 
     </div>
   );

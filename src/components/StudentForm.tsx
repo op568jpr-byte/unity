@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Student, RoomSharing, StudentStatus } from '../types';
-import { User, MapPin, ShieldAlert, BookOpen, GraduationCap, DollarSign, Calendar, Landmark, CreditCard, ChevronRight, ChevronLeft, Camera, Upload, Trash2, Check, RefreshCw, X, FileSpreadsheet, FileText } from 'lucide-react';
+import { User, MapPin, ShieldAlert, BookOpen, GraduationCap, DollarSign, Calendar, Landmark, CreditCard, ChevronRight, ChevronLeft, Camera, Upload, Trash2, Check, RefreshCw, X, FileSpreadsheet, FileText, Printer } from 'lucide-react';
+import { printBase64File } from '../utils/download';
 
 const convertDDMMYYYYToYYYYMMDD = (dateStr: string) => {
   if (!dateStr) return '';
@@ -101,10 +102,13 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
         if (onShowToast) onShowToast("Image size must be less than 2MB! ⚠️", true);
         return;
       }
+      const objectUrl = URL.createObjectURL(file);
+      setForm((prev: any) => ({ ...prev, profilePic: objectUrl }));
+      if (onShowToast) onShowToast("Profile photo uploaded successfully! 📸");
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setForm((prev: any) => ({ ...prev, profilePic: reader.result as string }));
-        if (onShowToast) onShowToast("Profile photo uploaded successfully! 📸");
       };
       reader.readAsDataURL(file);
     }
@@ -121,10 +125,13 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
         if (onShowToast) onShowToast("File size must be less than 2MB! ⚠️", true);
         return;
       }
+      const objectUrl = URL.createObjectURL(file);
+      setForm((prev: any) => ({ ...prev, [fieldName]: objectUrl }));
+      if (onShowToast) onShowToast("Document loaded successfully! 📂");
+
       const reader = new FileReader();
       reader.onloadend = () => {
         setForm((prev: any) => ({ ...prev, [fieldName]: reader.result as string }));
-        if (onShowToast) onShowToast("Document loaded successfully! 📂");
       };
       reader.readAsDataURL(file);
     }
@@ -420,6 +427,12 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
     if (step === 5) {
       if (!form.studentAadhaarDoc || form.studentAadhaarDoc === 'Pending' || form.studentAadhaarDoc === 'Pending Submission') {
         const msg = 'Student Aadhaar Card upload or status selection is mandatory! 💳⚠️';
+        setErrorMsg(msg);
+        if (onShowToast) onShowToast(msg, true);
+        return;
+      }
+      if (!form.fatherAadhaarDoc || form.fatherAadhaarDoc === 'Pending' || form.fatherAadhaarDoc === 'Pending Submission') {
+        const msg = "Father's Aadhaar Card upload or status selection is mandatory! 💳⚠️";
         setErrorMsg(msg);
         if (onShowToast) onShowToast(msg, true);
         return;
@@ -1372,22 +1385,30 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                     </select>
                   </div>
                 </div>
-                {form.policeVerification && form.policeVerification.startsWith('data:') ? (
-                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100">
+                {form.policeVerification && form.policeVerification.startsWith('data:') && (
+                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100 mb-1">
                     <img src={form.policeVerification} className="w-6 h-6 object-cover rounded border" referrerPolicy="no-referrer" />
                     <span className="text-[10px] font-mono text-emerald-700 font-bold flex-1 truncate">Uploaded Status</span>
-                    <button type="button" onClick={() => removeDoc('policeVerification')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
-                  </div>
-                ) : (
-                  <div>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={e => handleDocUpload('policeVerification', e.target.files?.[0] || null)}
-                      className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer" 
-                    />
+                    <div className="flex gap-2 text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => printBase64File(form.policeVerification, `${form.name || 'Student'}'s Police Verification`)}
+                        className="text-sky-600 hover:underline cursor-pointer flex items-center gap-0.5 font-bold"
+                      >
+                        <Printer className="w-3 h-3" /> Print
+                      </button>
+                      <button type="button" onClick={() => removeDoc('policeVerification')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
+                    </div>
                   </div>
                 )}
+                <div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={e => handleDocUpload('policeVerification', e.target.files?.[0] || null)}
+                    className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer w-full" 
+                  />
+                </div>
               </div>
 
               {/* Doc 2: Hostel Form */}
@@ -1408,22 +1429,30 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                     </select>
                   </div>
                 </div>
-                {form.hostelForm && form.hostelForm.startsWith('data:') ? (
-                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100">
+                {form.hostelForm && form.hostelForm.startsWith('data:') && (
+                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100 mb-1">
                     <img src={form.hostelForm} className="w-6 h-6 object-cover rounded border" referrerPolicy="no-referrer" />
                     <span className="text-[10px] font-mono text-emerald-700 font-bold flex-1 truncate">Uploaded Status</span>
-                    <button type="button" onClick={() => removeDoc('hostelForm')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
-                  </div>
-                ) : (
-                  <div>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={e => handleDocUpload('hostelForm', e.target.files?.[0] || null)}
-                      className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer" 
-                    />
+                    <div className="flex gap-2 text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => printBase64File(form.hostelForm, `${form.name || 'Student'}'s Hostel Admission Form`)}
+                        className="text-sky-600 hover:underline cursor-pointer flex items-center gap-0.5 font-bold"
+                      >
+                        <Printer className="w-3 h-3" /> Print
+                      </button>
+                      <button type="button" onClick={() => removeDoc('hostelForm')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
+                    </div>
                   </div>
                 )}
+                <div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={e => handleDocUpload('hostelForm', e.target.files?.[0] || null)}
+                    className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer w-full" 
+                  />
+                </div>
               </div>
 
               {/* Doc 3: Agreement Stay Deed */}
@@ -1444,22 +1473,30 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                     </select>
                   </div>
                 </div>
-                {form.agreementDoc && form.agreementDoc.startsWith('data:') ? (
-                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100">
+                {form.agreementDoc && form.agreementDoc.startsWith('data:') && (
+                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100 mb-1">
                     <img src={form.agreementDoc} className="w-6 h-6 object-cover rounded border" referrerPolicy="no-referrer" />
                     <span className="text-[10px] font-mono text-emerald-700 font-bold flex-1 truncate">Uploaded Status</span>
-                    <button type="button" onClick={() => removeDoc('agreementDoc')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
-                  </div>
-                ) : (
-                  <div>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={e => handleDocUpload('agreementDoc', e.target.files?.[0] || null)}
-                      className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer" 
-                    />
+                    <div className="flex gap-2 text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => printBase64File(form.agreementDoc, `${form.name || 'Student'}'s Lease Stay Agreement`)}
+                        className="text-sky-600 hover:underline cursor-pointer flex items-center gap-0.5 font-bold"
+                      >
+                        <Printer className="w-3 h-3" /> Print
+                      </button>
+                      <button type="button" onClick={() => removeDoc('agreementDoc')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
+                    </div>
                   </div>
                 )}
+                <div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={e => handleDocUpload('agreementDoc', e.target.files?.[0] || null)}
+                    className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer w-full" 
+                  />
+                </div>
               </div>
 
               {/* Doc 4: Student Aadhaar Card */}
@@ -1480,29 +1517,37 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                     </select>
                   </div>
                 </div>
-                {form.studentAadhaarDoc && form.studentAadhaarDoc.startsWith('data:') ? (
-                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100">
+                {form.studentAadhaarDoc && form.studentAadhaarDoc.startsWith('data:') && (
+                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100 mb-1">
                     <img src={form.studentAadhaarDoc} className="w-6 h-6 object-cover rounded border" referrerPolicy="no-referrer text-xs" />
                     <span className="text-[10px] font-mono text-emerald-700 font-bold flex-1 truncate">Uploaded Status</span>
-                    <button type="button" onClick={() => removeDoc('studentAadhaarDoc')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
-                  </div>
-                ) : (
-                  <div>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={e => handleDocUpload('studentAadhaarDoc', e.target.files?.[0] || null)}
-                      className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer" 
-                    />
+                    <div className="flex gap-2 text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => printBase64File(form.studentAadhaarDoc, `${form.name || 'Student'}'s Student Aadhaar Card`)}
+                        className="text-sky-600 hover:underline cursor-pointer flex items-center gap-0.5 font-bold"
+                      >
+                        <Printer className="w-3 h-3" /> Print
+                      </button>
+                      <button type="button" onClick={() => removeDoc('studentAadhaarDoc')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
+                    </div>
                   </div>
                 )}
+                <div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={e => handleDocUpload('studentAadhaarDoc', e.target.files?.[0] || null)}
+                    className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer w-full" 
+                  />
+                </div>
               </div>
 
               {/* Doc 5: Father Aadhaar Card */}
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 text-xs">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="font-black text-gray-800 block text-[11px]">5. Father's Aadhaar Card</span>
+                    <span className="font-black text-gray-800 block text-[11px]">5. Father's Aadhaar Card *</span>
                     <span className="text-[10px] text-gray-400">पिता का आधार कार्ड</span>
                   </div>
                   <div>
@@ -1516,22 +1561,30 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                     </select>
                   </div>
                 </div>
-                {form.fatherAadhaarDoc && form.fatherAadhaarDoc.startsWith('data:') ? (
-                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100">
+                {form.fatherAadhaarDoc && form.fatherAadhaarDoc.startsWith('data:') && (
+                  <div className="flex gap-2 items-center bg-white p-1 px-2 rounded-xl border border-emerald-100 mb-1">
                     <img src={form.fatherAadhaarDoc} className="w-6 h-6 object-cover rounded border" referrerPolicy="no-referrer" />
                     <span className="text-[10px] font-mono text-emerald-700 font-bold flex-1 truncate">Uploaded Status</span>
-                    <button type="button" onClick={() => removeDoc('fatherAadhaarDoc')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
-                  </div>
-                ) : (
-                  <div>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      onChange={e => handleDocUpload('fatherAadhaarDoc', e.target.files?.[0] || null)}
-                      className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer" 
-                    />
+                    <div className="flex gap-2 text-[10px] font-bold">
+                      <button
+                        type="button"
+                        onClick={() => printBase64File(form.fatherAadhaarDoc, `${form.name || 'Student'}'s Father's Aadhaar Card`)}
+                        className="text-sky-600 hover:underline cursor-pointer flex items-center gap-0.5 font-bold"
+                      >
+                        <Printer className="w-3 h-3" /> Print
+                      </button>
+                      <button type="button" onClick={() => removeDoc('fatherAadhaarDoc')} className="text-red-500 font-bold hover:underline cursor-pointer">Reset</button>
+                    </div>
                   </div>
                 )}
+                <div>
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={e => handleDocUpload('fatherAadhaarDoc', e.target.files?.[0] || null)}
+                    className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer w-full" 
+                  />
+                </div>
               </div>
             </div>
 
