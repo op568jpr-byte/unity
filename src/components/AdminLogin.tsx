@@ -77,7 +77,7 @@ export default function AdminLogin({ onClose, onLoginSuccess, onShowToast, setti
       return;
     }
 
-    const code = localStorage.getItem('ubh_creds_recovery_key') || 'A040619932024Z';
+    const code = settings?.recoveryKey || localStorage.getItem('ubh_creds_recovery_key') || 'A040619932024Z';
     setOtpSent(code);
     setGeneratedOtpHint(code);
     setForgotStep(2);
@@ -87,7 +87,7 @@ export default function AdminLogin({ onClose, onLoginSuccess, onShowToast, setti
   // OTP verify handler
   const handleVerifyOTP = (e: React.FormEvent) => {
     e.preventDefault();
-    const masterCode = localStorage.getItem('ubh_creds_recovery_key') || 'A040619932024Z';
+    const masterCode = settings?.recoveryKey || localStorage.getItem('ubh_creds_recovery_key') || 'A040619932024Z';
     if (otpInput === masterCode) {
       setForgotStep(3);
       onShowToast('Verification successful! Set your new panel password now. 🔑');

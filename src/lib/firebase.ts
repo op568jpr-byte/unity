@@ -150,7 +150,7 @@ export function setupSettingsSync(
       console.log('Seeding initial hostel settings...');
       await setDoc(docRef, fallbackSettings);
     } else {
-      onUpdate(snapshot.data());
+      onUpdate({ ...fallbackSettings, ...snapshot.data() });
     }
   }, (error: any) => {
     const isQuota = error?.message?.includes('Quota exceeded') || 
