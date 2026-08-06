@@ -126,57 +126,130 @@ export default function MessMenuManagement({
         <title>Mess Menu - ${settings.name}</title>
         <meta charset="UTF-8">
         <style>
-          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+Devanagari:wght@400;700;900&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Noto+Sans+Devanagari:wght@400;700;900&display=swap');
+          * {
+            box-sizing: border-box;
+          }
           body {
             font-family: 'Inter', 'Noto Sans Devanagari', sans-serif;
             margin: 0;
-            padding: 30px;
-            color: #1a1a2e;
+            padding: 24px;
+            color: #000000;
             background-color: #ffffff;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+            font-weight: 700;
           }
+
+          /* Full Dark Theme Mode */
+          body.dark-poster {
+            background-color: #090d16 !important;
+            color: #ffffff !important;
+          }
+          body.dark-poster .container {
+            background-color: #0f172a !important;
+            border-color: #f8fafc !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+          }
+          body.dark-poster .header {
+            border-bottom-color: #f8fafc !important;
+          }
+          body.dark-poster .hostel-name {
+            color: #f59e0b !important;
+          }
+          body.dark-poster .title {
+            color: #ffffff !important;
+            background-color: #1e293b !important;
+            border-color: #38bdf8 !important;
+          }
+          body.dark-poster .timings-container {
+            background-color: #1e293b !important;
+            border-color: #475569 !important;
+            color: #ffffff !important;
+          }
+          body.dark-poster .timings-title {
+            color: #f59e0b !important;
+          }
+          body.dark-poster table th {
+            background-color: #1e293b !important;
+            color: #f59e0b !important;
+            border-color: #475569 !important;
+          }
+          body.dark-poster table td {
+            border-color: #334155 !important;
+            color: #f8fafc !important;
+          }
+          body.dark-poster .col-day {
+            background-color: #1e293b !important;
+            color: #38bdf8 !important;
+          }
+          body.dark-poster .compulsory-row {
+            background-color: #2e1010 !important;
+          }
+          body.dark-poster .compulsory-label {
+            color: #f87171 !important;
+          }
+          body.dark-poster .special-note {
+            background-color: #1e293b !important;
+            border-color: #f59e0b !important;
+            color: #fde047 !important;
+          }
+          body.dark-poster .footer {
+            color: #94a3b8 !important;
+            border-top-color: #334155 !important;
+          }
+
+          /* Default High Contrast Deep Dark Bold Style */
           .container {
-            border: 4px double #1a1a2e;
+            border: 4px solid #000000;
             padding: 24px;
             max-width: 950px;
             margin: 0 auto;
             position: relative;
+            background: #ffffff;
           }
           .header {
             text-align: center;
-            border-bottom: 2px solid #1a1a2e;
-            padding-bottom: 15px;
+            border-bottom: 3px solid #000000;
+            padding-bottom: 16px;
             margin-bottom: 20px;
           }
           .hostel-name {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin: 0 0 5px 0;
+            margin: 0 0 6px 0;
+            color: #000000;
           }
           .title {
-            font-size: 20px;
-            font-weight: 700;
-            margin: 0 0 10px 0;
-            letter-spacing: 0.5px;
-            color: #333;
+            font-size: 22px;
+            font-weight: 900;
+            margin: 0 0 12px 0;
+            letter-spacing: 1px;
+            color: #000000;
+            background: #f1f5f9;
+            display: inline-block;
+            padding: 6px 20px;
+            border: 2px solid #000000;
+            border-radius: 8px;
           }
           .timings-container {
             display: flex;
             justify-content: space-around;
-            background: #f4f6f9;
-            padding: 10px;
+            background: #f8fafc;
+            padding: 12px;
             border-radius: 8px;
             margin-bottom: 20px;
-            font-size: 13px;
-            font-weight: 600;
-            border: 1px solid #ddd;
+            font-size: 14px;
+            font-weight: 800;
+            border: 2px solid #000000;
+            color: #000000;
           }
           .timings-title {
-            font-weight: 800;
-            color: #FF6B35;
+            font-weight: 900;
+            color: #000000;
             text-transform: uppercase;
           }
           table {
@@ -185,102 +258,140 @@ export default function MessMenuManagement({
             margin-bottom: 20px;
           }
           th, td {
-            border: 1px solid #1a1a2e;
-            padding: 12px;
+            border: 2px solid #000000;
+            padding: 12px 10px;
             text-align: center;
-            font-size: 13px;
+            font-size: 14px;
+            color: #000000;
           }
           th {
-            background-color: #1a1a2e;
+            background-color: #000000;
             color: #ffffff;
-            font-weight: 800;
+            font-weight: 900;
+            font-size: 15px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
           }
           .col-day {
-            width: 15%;
-            font-weight: 800;
-            background-color: #f8fafc;
+            width: 16%;
+            font-weight: 900;
+            background-color: #f1f5f9;
             text-transform: uppercase;
+            color: #000000;
+            font-size: 14px;
           }
           .col-meal {
             width: 28%;
-            font-weight: 500;
+            font-weight: 700;
+            color: #000000;
+            font-size: 14px;
+            line-height: 1.4;
           }
           .compulsory-row {
-            background-color: #fdf2f2;
-            font-weight: 700;
+            background-color: #fee2e2;
+            font-weight: 800;
           }
           .compulsory-label {
             font-weight: 900;
-            color: #c53030;
-            font-size: 11px;
+            color: #991b1b;
+            font-size: 12px;
             text-transform: uppercase;
           }
           .special-note {
-            border: 2px dashed #FF6B35;
-            background-color: #fffaf0;
-            padding: 15px;
+            border: 3px dashed #000000;
+            background-color: #fef9c3;
+            padding: 16px;
             border-radius: 8px;
             margin-top: 20px;
             text-align: center;
-            font-weight: 700;
-            font-size: 14px;
-            color: #b7791f;
+            font-weight: 900;
+            font-size: 15px;
+            color: #000000;
             line-height: 1.6;
           }
           .footer {
-            margin-top: 30px;
+            margin-top: 25px;
             text-align: center;
-            font-size: 11px;
-            color: #718096;
-            border-top: 1px solid #e2e8f0;
+            font-size: 12px;
+            font-weight: 800;
+            color: #000000;
+            border-top: 2px solid #000000;
             padding-top: 10px;
           }
           @media print {
             body {
               padding: 0;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             .container {
-              border: 3px solid #000000;
+              border: 4px solid #000000 !important;
             }
             .no-print {
-              display: none;
+              display: none !important;
+            }
+            th, td {
+              border: 2px solid #000000 !important;
+              color: #000000;
+              font-weight: 700;
+            }
+            th {
+              background-color: #000000 !important;
+              color: #ffffff !important;
             }
           }
           .print-btn-bar {
             text-align: center;
             margin-bottom: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
           }
           .btn {
-            background-color: #FF6B35;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            font-size: 14px;
-            font-weight: bold;
-            border-radius: 6px;
+            background-color: #000000;
+            color: #ffffff;
+            border: 2px solid #000000;
+            padding: 12px 24px;
+            font-size: 15px;
+            font-weight: 900;
+            border-radius: 8px;
             cursor: pointer;
             transition: all 0.2s;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
           }
           .btn:hover {
-            background-color: #e0531f;
+            background-color: #1e293b;
+          }
+          .btn-toggle {
+            background-color: #1e293b;
+            color: #fbbf24;
+            border: 2px solid #000000;
+            padding: 12px 20px;
+            font-size: 14px;
+            font-weight: 800;
+            border-radius: 8px;
+            cursor: pointer;
+          }
+          .btn-toggle:hover {
+            background-color: #0f172a;
           }
         </style>
       </head>
       <body>
         <div class="print-btn-bar no-print">
-          <button class="btn" onclick="window.print()">🖨️ Click to Print Menu Card (मेन्यू प्रिंट करें)</button>
+          <button class="btn" onclick="window.print()">🖨️ Click to Print Menu (गहरा डार्क प्रिंट करें)</button>
+          <button class="btn-toggle" onclick="document.body.classList.toggle('dark-poster')">🌓 Dark / Light Theme Toggle (डार्क थीम बदलें)</button>
         </div>
         <div class="container">
           <div class="header">
             <h1 class="hostel-name">${settings.name}</h1>
             <div class="title">MESS MENU (मैस मेनू)</div>
             <div class="timings-container">
-              <div><span class="timings-title">⏰ Breakfast:</span> ${menu.timings.breakfast}</div>
-              <div><span class="timings-title">⏰ Lunch:</span> ${menu.timings.lunch}</div>
-              <div><span class="timings-title">⏰ Dinner:</span> ${menu.timings.dinner}</div>
+              <div><span class="timings-title">⏰ Breakfast:</span> <strong>${menu.timings.breakfast}</strong></div>
+              <div><span class="timings-title">⏰ Lunch:</span> <strong>${menu.timings.lunch}</strong></div>
+              <div><span class="timings-title">⏰ Dinner:</span> <strong>${menu.timings.dinner}</strong></div>
             </div>
           </div>
 
@@ -297,11 +408,11 @@ export default function MessMenuManagement({
               <tr class="compulsory-row">
                 <td class="col-day">
                   <div class="compulsory-label">DAILY</div>
-                  <div style="font-size:10px; font-weight:normal;">(COMPULSORY)</div>
+                  <div style="font-size:11px; font-weight:800;">(COMPULSORY)</div>
                 </td>
-                <td class="col-meal" style="color: #a0aec0; font-size:11px;">--</td>
-                <td class="col-meal" style="color:#c53030;">${menu.compulsory.lunch}</td>
-                <td class="col-meal" style="color:#c53030;">${menu.compulsory.dinner}</td>
+                <td class="col-meal" style="color: #64748b; font-size:12px; font-weight:800;">--</td>
+                <td class="col-meal" style="color:#991b1b; font-weight:900;">${menu.compulsory.lunch}</td>
+                <td class="col-meal" style="color:#991b1b; font-weight:900;">${menu.compulsory.dinner}</td>
               </tr>
               <tr>
                 <td class="col-day">MONDAY</td>
@@ -340,10 +451,10 @@ export default function MessMenuManagement({
                 <td class="col-meal">${menu.days.Saturday.dinner}</td>
               </tr>
               <tr>
-                <td class="col-day" style="color:#c53030;">SUNDAY</td>
+                <td class="col-day" style="color:#991b1b; font-weight:900;">SUNDAY</td>
                 <td class="col-meal">${menu.days.Sunday.breakfast}</td>
                 <td class="col-meal">${menu.days.Sunday.lunch}</td>
-                <td class="col-meal" style="font-weight: 800; color:#2b6cb0;">${menu.days.Sunday.dinner}</td>
+                <td class="col-meal" style="font-weight: 900; color:#1e3a8a;">${menu.days.Sunday.dinner}</td>
               </tr>
             </tbody>
           </table>

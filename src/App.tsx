@@ -267,6 +267,11 @@ export default function App() {
       (data) => {
         setSettings(data);
         safeStorage.setItem('ubh_settings', JSON.stringify(data));
+        if (data.masterUsername) safeStorage.setItem('ubh_creds_master_u', data.masterUsername);
+        if (data.masterPassword) safeStorage.setItem('ubh_creds_master_p', data.masterPassword);
+        if (data.staffUsername) safeStorage.setItem('ubh_creds_staff_u', data.staffUsername);
+        if (data.staffPassword) safeStorage.setItem('ubh_creds_staff_p', data.staffPassword);
+        if (data.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', data.recoveryKey);
       },
       DEFAULT_SETTINGS
     );
@@ -933,6 +938,12 @@ export default function App() {
   const handleSaveSettings = async (updated: HostelSettings) => {
     setSettings(updated);
     safeStorage.setItem('ubh_settings', JSON.stringify(updated));
+    if (updated.masterUsername) safeStorage.setItem('ubh_creds_master_u', updated.masterUsername);
+    if (updated.masterPassword) safeStorage.setItem('ubh_creds_master_p', updated.masterPassword);
+    if (updated.staffUsername) safeStorage.setItem('ubh_creds_staff_u', updated.staffUsername);
+    if (updated.staffPassword) safeStorage.setItem('ubh_creds_staff_p', updated.staffPassword);
+    if (updated.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', updated.recoveryKey);
+
     try {
       await saveDocument('settings', 'hostel_settings', updated);
       showToast('Hostel configurations saved successfully! ⚙️');

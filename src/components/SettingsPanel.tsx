@@ -89,15 +89,17 @@ export default function SettingsPanel({
     localStorage.setItem('ubh_creds_staff_p', staffPass);
     localStorage.setItem('ubh_creds_recovery_key', recoveryKey.trim());
 
-    // Save to Firestore synced settings
-    onSaveSettings({
-      ...settings,
+    // Save to Firestore synced settings along with all current form fields (e.g. totalBeds)
+    const fullUpdatedSettings: HostelSettings = {
+      ...form,
       masterUsername: masterUser,
       masterPassword: masterPass,
       staffUsername: staffUser,
       staffPassword: staffPass,
       recoveryKey: recoveryKey.trim()
-    });
+    };
+    setForm(fullUpdatedSettings);
+    onSaveSettings(fullUpdatedSettings);
 
     onShowToast('Login Credentials & Recovery Key successfully updated and synced with live database! 🔐');
   };
@@ -384,7 +386,16 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
       onShowToast('Please fill out Name, Phone, and Email configs! ⚠️', true);
       return;
     }
-    onSaveSettings({ ...form });
+    const fullUpdatedSettings: HostelSettings = {
+      ...form,
+      masterUsername: masterUser,
+      masterPassword: masterPass,
+      staffUsername: staffUser,
+      staffPassword: staffPass,
+      recoveryKey: recoveryKey.trim(),
+    };
+    setForm(fullUpdatedSettings);
+    onSaveSettings(fullUpdatedSettings);
   };
 
   const handleJSONImport = (e: React.ChangeEvent<HTMLInputElement>) => {
