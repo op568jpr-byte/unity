@@ -65,11 +65,17 @@ import DocumentViewer from './components/DocumentViewer';
 const safeStorage = {
   getItem: (key: string): string | null => {
     try {
-      if (typeof window !== 'undefined' && (window as any).MEMORY_STORE && (window as any).MEMORY_STORE[key] !== undefined) {
-        const val = (window as any).MEMORY_STORE[key];
-        return typeof val === 'object' ? JSON.stringify(val) : String(val);
+      if (typeof window !== 'undefined') {
+        const localVal = localStorage.getItem(key);
+        if (localVal !== null && localVal !== 'undefined') {
+          return localVal;
+        }
+        if ((window as any).MEMORY_STORE && (window as any).MEMORY_STORE[key] !== undefined) {
+          const val = (window as any).MEMORY_STORE[key];
+          return typeof val === 'object' ? JSON.stringify(val) : String(val);
+        }
       }
-      return localStorage.getItem(key);
+      return null;
     } catch (e) {
       console.warn(`localStorage.getItem failed for key ${key}:`, e);
       if (typeof window !== 'undefined') {
@@ -82,6 +88,10 @@ const safeStorage = {
   setItem: (key: string, value: string): void => {
     try {
       localStorage.setItem(key, value);
+      if (typeof window !== 'undefined') {
+        if (!(window as any).MEMORY_STORE) (window as any).MEMORY_STORE = {};
+        (window as any).MEMORY_STORE[key] = value;
+      }
     } catch (e) {
       console.warn(`localStorage.setItem failed for key ${key}:`, e);
       if (typeof window !== 'undefined') {
@@ -93,6 +103,9 @@ const safeStorage = {
   removeItem: (key: string): void => {
     try {
       localStorage.removeItem(key);
+      if (typeof window !== 'undefined' && (window as any).MEMORY_STORE) {
+        delete (window as any).MEMORY_STORE[key];
+      }
     } catch (e) {
       console.warn(`localStorage.removeItem failed for key ${key}:`, e);
       if (typeof window !== 'undefined' && (window as any).MEMORY_STORE) {
@@ -211,7 +224,24 @@ export default function App() {
     const unsubStudents = setupCollectionSync<Student>(
       'students',
       (data) => {
-        setStudents(data);
+        if (data && data.length > 0) {
+          setStudents(data);
+          safeStorage.setItem('ubh_students', JSON.stringify(data));
+        } else {
+          const cached = safeStorage.getItem('ubh_students');
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setStudents(parsed);
+                parsed.forEach(item => saveDocument('students', item.id, item).catch(() => {}));
+                setIsFirebaseConnected(true);
+                return;
+              }
+            } catch (e) {}
+          }
+          setStudents(data);
+        }
         setIsFirebaseConnected(true);
       },
       INITIAL_STUDENTS
@@ -221,7 +251,23 @@ export default function App() {
     const unsubPayments = setupCollectionSync<Payment>(
       'payments',
       (data) => {
-        setPayments(data);
+        if (data && data.length > 0) {
+          setPayments(data);
+          safeStorage.setItem('ubh_payments', JSON.stringify(data));
+        } else {
+          const cached = safeStorage.getItem('ubh_payments');
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setPayments(parsed);
+                parsed.forEach(item => saveDocument('payments', item.id, item).catch(() => {}));
+                return;
+              }
+            } catch (e) {}
+          }
+          setPayments(data);
+        }
       },
       INITIAL_PAYMENTS
     );
@@ -230,7 +276,23 @@ export default function App() {
     const unsubComplaints = setupCollectionSync<Complaint>(
       'complaints',
       (data) => {
-        setComplaints(data);
+        if (data && data.length > 0) {
+          setComplaints(data);
+          safeStorage.setItem('ubh_complaints', JSON.stringify(data));
+        } else {
+          const cached = safeStorage.getItem('ubh_complaints');
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setComplaints(parsed);
+                parsed.forEach(item => saveDocument('complaints', item.id, item).catch(() => {}));
+                return;
+              }
+            } catch (e) {}
+          }
+          setComplaints(data);
+        }
       },
       INITIAL_COMPLAINTS
     );
@@ -239,7 +301,23 @@ export default function App() {
     const unsubVisitors = setupCollectionSync<Visitor>(
       'visitors',
       (data) => {
-        setVisitors(data);
+        if (data && data.length > 0) {
+          setVisitors(data);
+          safeStorage.setItem('ubh_visitors', JSON.stringify(data));
+        } else {
+          const cached = safeStorage.getItem('ubh_visitors');
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setVisitors(parsed);
+                parsed.forEach(item => saveDocument('visitors', item.id, item).catch(() => {}));
+                return;
+              }
+            } catch (e) {}
+          }
+          setVisitors(data);
+        }
       },
       INITIAL_VISITORS
     );
@@ -248,7 +326,23 @@ export default function App() {
     const unsubWithdrawals = setupCollectionSync<PartnerWithdrawal>(
       'partnerWithdrawals',
       (data) => {
-        setPartnerWithdrawals(data);
+        if (data && data.length > 0) {
+          setPartnerWithdrawals(data);
+          safeStorage.setItem('ubh_partner_withdrawals', JSON.stringify(data));
+        } else {
+          const cached = safeStorage.getItem('ubh_partner_withdrawals');
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setPartnerWithdrawals(parsed);
+                parsed.forEach(item => saveDocument('partnerWithdrawals', item.id, item).catch(() => {}));
+                return;
+              }
+            } catch (e) {}
+          }
+          setPartnerWithdrawals(data);
+        }
       },
       INITIAL_PARTNER_WITHDRAWALS
     );
@@ -257,7 +351,23 @@ export default function App() {
     const unsubExpenses = setupCollectionSync<HostelExpense>(
       'expenses',
       (data) => {
-        setExpenses(data);
+        if (data && data.length > 0) {
+          setExpenses(data);
+          safeStorage.setItem('ubh_hostel_expenses', JSON.stringify(data));
+        } else {
+          const cached = safeStorage.getItem('ubh_hostel_expenses');
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                setExpenses(parsed);
+                parsed.forEach(item => saveDocument('expenses', item.id, item).catch(() => {}));
+                return;
+              }
+            } catch (e) {}
+          }
+          setExpenses(data);
+        }
       },
       INITIAL_HOSTEL_EXPENSES
     );
@@ -265,13 +375,45 @@ export default function App() {
     // Set up real-time sync for settings
     const unsubSettings = setupSettingsSync(
       (data) => {
-        setSettings(data);
-        safeStorage.setItem('ubh_settings', JSON.stringify(data));
-        if (data.masterUsername) safeStorage.setItem('ubh_creds_master_u', data.masterUsername);
-        if (data.masterPassword) safeStorage.setItem('ubh_creds_master_p', data.masterPassword);
-        if (data.staffUsername) safeStorage.setItem('ubh_creds_staff_u', data.staffUsername);
-        if (data.staffPassword) safeStorage.setItem('ubh_creds_staff_p', data.staffPassword);
-        if (data.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', data.recoveryKey);
+        const cachedSettingsStr = safeStorage.getItem('ubh_settings');
+        let cachedObj: Partial<HostelSettings> = {};
+        if (cachedSettingsStr) {
+          try { cachedObj = JSON.parse(cachedSettingsStr); } catch (e) {}
+        }
+
+        const masterU = safeStorage.getItem('ubh_creds_master_u');
+        const masterP = safeStorage.getItem('ubh_creds_master_p');
+        const staffU = safeStorage.getItem('ubh_creds_staff_u');
+        const staffP = safeStorage.getItem('ubh_creds_staff_p');
+        const recKey = safeStorage.getItem('ubh_creds_recovery_key');
+
+        const effectiveTotalBeds = (typeof data?.totalBeds === 'number' && data.totalBeds > 0)
+          ? data.totalBeds
+          : ((typeof cachedObj.totalBeds === 'number' && cachedObj.totalBeds > 0) ? cachedObj.totalBeds : 100);
+
+        const merged: HostelSettings = {
+          ...DEFAULT_SETTINGS,
+          ...cachedObj,
+          ...data,
+          totalBeds: effectiveTotalBeds,
+          masterUsername: data?.masterUsername || cachedObj.masterUsername || masterU || 'admin',
+          masterPassword: data?.masterPassword || cachedObj.masterPassword || masterP || 'admin123',
+          staffUsername: data?.staffUsername || cachedObj.staffUsername || staffU || 'staff',
+          staffPassword: data?.staffPassword || cachedObj.staffPassword || staffP || 'staff123',
+          recoveryKey: data?.recoveryKey || cachedObj.recoveryKey || recKey || 'A040619932024Z',
+        };
+
+        setSettings(merged);
+        safeStorage.setItem('ubh_settings', JSON.stringify(merged));
+        if (merged.masterUsername) safeStorage.setItem('ubh_creds_master_u', merged.masterUsername);
+        if (merged.masterPassword) safeStorage.setItem('ubh_creds_master_p', merged.masterPassword);
+        if (merged.staffUsername) safeStorage.setItem('ubh_creds_staff_u', merged.staffUsername);
+        if (merged.staffPassword) safeStorage.setItem('ubh_creds_staff_p', merged.staffPassword);
+        if (merged.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', merged.recoveryKey);
+
+        if (typeof data?.totalBeds !== 'number' || data.totalBeds !== effectiveTotalBeds) {
+          saveDocument('settings', 'hostel_settings', merged).catch(() => {});
+        }
       },
       DEFAULT_SETTINGS
     );
@@ -936,20 +1078,31 @@ export default function App() {
 
   // Saving settings
   const handleSaveSettings = async (updated: HostelSettings) => {
-    setSettings(updated);
-    safeStorage.setItem('ubh_settings', JSON.stringify(updated));
-    if (updated.masterUsername) safeStorage.setItem('ubh_creds_master_u', updated.masterUsername);
-    if (updated.masterPassword) safeStorage.setItem('ubh_creds_master_p', updated.masterPassword);
-    if (updated.staffUsername) safeStorage.setItem('ubh_creds_staff_u', updated.staffUsername);
-    if (updated.staffPassword) safeStorage.setItem('ubh_creds_staff_p', updated.staffPassword);
-    if (updated.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', updated.recoveryKey);
+    const finalSettings: HostelSettings = {
+      ...settings,
+      ...updated,
+      totalBeds: typeof updated.totalBeds === 'number' && updated.totalBeds > 0 ? updated.totalBeds : (settings.totalBeds || 100),
+      masterUsername: updated.masterUsername || settings.masterUsername || safeStorage.getItem('ubh_creds_master_u') || 'admin',
+      masterPassword: updated.masterPassword || settings.masterPassword || safeStorage.getItem('ubh_creds_master_p') || 'admin123',
+      staffUsername: updated.staffUsername || settings.staffUsername || safeStorage.getItem('ubh_creds_staff_u') || 'staff',
+      staffPassword: updated.staffPassword || settings.staffPassword || safeStorage.getItem('ubh_creds_staff_p') || 'staff123',
+      recoveryKey: updated.recoveryKey || settings.recoveryKey || safeStorage.getItem('ubh_creds_recovery_key') || 'A040619932024Z',
+    };
+
+    setSettings(finalSettings);
+    safeStorage.setItem('ubh_settings', JSON.stringify(finalSettings));
+    if (finalSettings.masterUsername) safeStorage.setItem('ubh_creds_master_u', finalSettings.masterUsername);
+    if (finalSettings.masterPassword) safeStorage.setItem('ubh_creds_master_p', finalSettings.masterPassword);
+    if (finalSettings.staffUsername) safeStorage.setItem('ubh_creds_staff_u', finalSettings.staffUsername);
+    if (finalSettings.staffPassword) safeStorage.setItem('ubh_creds_staff_p', finalSettings.staffPassword);
+    if (finalSettings.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', finalSettings.recoveryKey);
 
     try {
-      await saveDocument('settings', 'hostel_settings', updated);
-      showToast('Hostel configurations saved successfully! ⚙️');
+      await saveDocument('settings', 'hostel_settings', finalSettings);
+      showToast('Hostel configurations & capacity saved successfully! ⚙️');
     } catch (e) {
       console.error('Error syncing settings with Firebase:', e);
-      showToast('Failed to save settings to Firebase ❌', true);
+      showToast('Saved locally in browser memory! ⚙️');
     }
   };
 
@@ -1158,6 +1311,7 @@ export default function App() {
               complaints={complaints}
               visitors={visitors}
               settings={settings}
+              onSaveSettings={handleSaveSettings}
               onNavigateTab={setCurTab}
               onOpenQuickModal={(type) => openQuickActionModal(type)}
               onShowToast={showToast}

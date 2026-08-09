@@ -373,6 +373,20 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
     });
   };
 
+  const handleCapacityChange = (field: keyof HostelSettings, val: number) => {
+    const updated: HostelSettings = {
+      ...form,
+      [field]: val,
+      masterUsername: masterUser,
+      masterPassword: masterPass,
+      staffUsername: staffUser,
+      staffPassword: staffPass,
+      recoveryKey: recoveryKey.trim()
+    };
+    setForm(updated);
+    onSaveSettings(updated);
+  };
+
   const handleCheckboxChange = (field: keyof HostelSettings, checked: boolean) => {
     setForm({
       ...form,
@@ -388,6 +402,10 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
     }
     const fullUpdatedSettings: HostelSettings = {
       ...form,
+      totalBeds: Number(form.totalBeds) > 0 ? Number(form.totalBeds) : 100,
+      doubleRoomsCount: Number(form.doubleRoomsCount) > 0 ? Number(form.doubleRoomsCount) : 25,
+      tripleRoomsCount: Number(form.tripleRoomsCount) > 0 ? Number(form.tripleRoomsCount) : 15,
+      totalRoomsCount: Number(form.totalRoomsCount) > 0 ? Number(form.totalRoomsCount) : 45,
       masterUsername: masterUser,
       masterPassword: masterPass,
       staffUsername: staffUser,
@@ -591,97 +609,164 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
               ⚙️ Dynamic System controls (सिस्टम सेटअप नियंत्रक)
             </h5>
             
-            {/* CAPACITY INCREMENT / DECREMENT BUTTON GROUPS */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              
-              {/* Control 1: Total Beds Control */}
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase">Total Bed Capacity</label>
-                <div className="flex items-center justify-between">
-                  <button 
-                    type="button" 
-                    onClick={() => handleTextChange('totalBeds', Math.max(1, (form.totalBeds || 100) - 1))}
-                    className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400"
-                  >
-                    -
-                  </button>
-                  <span className="font-extrabold text-xs text-[#1A1A2E]">{form.totalBeds || 100} beds</span>
-                  <button 
-                    type="button" 
-                    onClick={() => handleTextChange('totalBeds', (form.totalBeds || 100) + 1)}
-                    className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400"
-                  >
-                    +
-                  </button>
+            {/* CAPACITY INCREMENT / DECREMENT BUTTON GROUPS WITH DIRECT NUMERIC INPUT */}
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                {/* Control 1: Total Student Capacity Control */}
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase">Total Student Capacity (कुल बेड / सीटें)</label>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => handleCapacityChange('totalBeds', Math.max(1, (Number(form.totalBeds) || 100) - 1))}
+                      className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.totalBeds !== undefined && form.totalBeds !== null ? form.totalBeds : 100}
+                      onChange={e => {
+                        const val = parseInt(e.target.value);
+                        handleCapacityChange('totalBeds', isNaN(val) ? 0 : val);
+                      }}
+                      className="w-full text-center font-extrabold text-xs text-[#1A1A2E] bg-white border border-gray-300 rounded-lg py-1 px-1 focus:border-[#FF6B35] outline-none"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => handleCapacityChange('totalBeds', (Number(form.totalBeds) || 100) + 1)}
+                      className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
+
+                {/* Control 2: Double Rooms Count */}
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase">Double Sharing (दुवाल रूम संख्या)</label>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => handleCapacityChange('doubleRoomsCount', Math.max(1, (Number(form.doubleRoomsCount) || 25) - 1))}
+                      className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.doubleRoomsCount !== undefined && form.doubleRoomsCount !== null ? form.doubleRoomsCount : 25}
+                      onChange={e => {
+                        const val = parseInt(e.target.value);
+                        handleCapacityChange('doubleRoomsCount', isNaN(val) ? 0 : val);
+                      }}
+                      className="w-full text-center font-extrabold text-xs text-[#1A1A2E] bg-white border border-gray-300 rounded-lg py-1 px-1 focus:border-[#FF6B35] outline-none"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => handleCapacityChange('doubleRoomsCount', (Number(form.doubleRoomsCount) || 25) + 1)}
+                      className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Control 3: Triple Rooms Count */}
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase">Triple Sharing (त्रिपल रूम संख्या)</label>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => handleCapacityChange('tripleRoomsCount', Math.max(1, (Number(form.tripleRoomsCount) || 15) - 1))}
+                      className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.tripleRoomsCount !== undefined && form.tripleRoomsCount !== null ? form.tripleRoomsCount : 15}
+                      onChange={e => {
+                        const val = parseInt(e.target.value);
+                        handleCapacityChange('tripleRoomsCount', isNaN(val) ? 0 : val);
+                      }}
+                      className="w-full text-center font-extrabold text-xs text-[#1A1A2E] bg-white border border-gray-300 rounded-lg py-1 px-1 focus:border-[#FF6B35] outline-none"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => handleCapacityChange('tripleRoomsCount', (Number(form.tripleRoomsCount) || 15) + 1)}
+                      className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
+                {/* Control 4: Total Rooms Setup */}
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase">Total Rooms (कमरा संख्या नियंत्रक)</label>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      type="button" 
+                      onClick={() => handleCapacityChange('totalRoomsCount', Math.max(1, (Number(form.totalRoomsCount) || 45) - 1))}
+                      className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
+                    >
+                      -
+                    </button>
+                    <input
+                      type="number"
+                      min={1}
+                      value={form.totalRoomsCount !== undefined && form.totalRoomsCount !== null ? form.totalRoomsCount : 45}
+                      onChange={e => {
+                        const val = parseInt(e.target.value);
+                        handleCapacityChange('totalRoomsCount', isNaN(val) ? 0 : val);
+                      }}
+                      className="w-full text-center font-extrabold text-xs text-[#1A1A2E] bg-white border border-gray-300 rounded-lg py-1 px-1 focus:border-[#FF6B35] outline-none"
+                    />
+                    <button 
+                      type="button" 
+                      onClick={() => handleCapacityChange('totalRoomsCount', (Number(form.totalRoomsCount) || 45) + 1)}
+                      className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+
               </div>
 
-              {/* Control 2: Double Rooms Count */}
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase">Double Sharing (दुवाल रूम संख्या)</label>
-                <div className="flex items-center justify-between">
-                  <button 
-                    type="button" 
-                    onClick={() => handleTextChange('doubleRoomsCount', Math.max(1, (form.doubleRoomsCount || 25) - 1))}
-                    className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400"
-                  >
-                    -
-                  </button>
-                  <span className="font-extrabold text-xs text-[#1A1A2E]">{form.doubleRoomsCount || 25} Rooms</span>
-                  <button 
-                    type="button" 
-                    onClick={() => handleTextChange('doubleRoomsCount', (form.doubleRoomsCount || 25) + 1)}
-                    className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400"
-                  >
-                    +
-                  </button>
-                </div>
+              <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200/80 p-2.5 rounded-xl text-xs font-bold text-emerald-800">
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Capacity changes auto-save & sync directly to database!
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const fullUpdatedSettings: HostelSettings = {
+                      ...form,
+                      totalBeds: Number(form.totalBeds) > 0 ? Number(form.totalBeds) : 100,
+                      doubleRoomsCount: Number(form.doubleRoomsCount) > 0 ? Number(form.doubleRoomsCount) : 25,
+                      tripleRoomsCount: Number(form.tripleRoomsCount) > 0 ? Number(form.tripleRoomsCount) : 15,
+                      totalRoomsCount: Number(form.totalRoomsCount) > 0 ? Number(form.totalRoomsCount) : 45,
+                      masterUsername: masterUser,
+                      masterPassword: masterPass,
+                      staffUsername: staffUser,
+                      staffPassword: staffPass,
+                      recoveryKey: recoveryKey.trim(),
+                    };
+                    onSaveSettings(fullUpdatedSettings);
+                    onShowToast('Capacity & System Configs explicitly saved & synced! 💾');
+                  }}
+                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-black transition cursor-pointer shadow-xs active:scale-95"
+                >
+                  Save Capacity 💾
+                </button>
               </div>
-
-              {/* Control 3: Triple Rooms Count */}
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase">Triple Sharing (त्रिपल रूम संख्या)</label>
-                <div className="flex items-center justify-between">
-                  <button 
-                    type="button" 
-                    onClick={() => handleTextChange('tripleRoomsCount', Math.max(1, (form.tripleRoomsCount || 15) - 1))}
-                    className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400"
-                  >
-                    -
-                  </button>
-                  <span className="font-extrabold text-xs text-[#1A1A2E]">{form.tripleRoomsCount || 15} Rooms</span>
-                  <button 
-                    type="button" 
-                    onClick={() => handleTextChange('tripleRoomsCount', (form.tripleRoomsCount || 15) + 1)}
-                    className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
-              {/* Control 4: Total Rooms Setup */}
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-                <label className="block text-[10px] font-bold text-gray-500 uppercase">Total Rooms (कमरा संख्या नियंत्रक)</label>
-                <div className="flex items-center justify-between">
-                  <button 
-                    type="button" 
-                    onClick={() => handleTextChange('totalRoomsCount', Math.max(1, (form.totalRoomsCount || 45) - 1))}
-                    className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400"
-                  >
-                    -
-                  </button>
-                  <span className="font-extrabold text-xs text-[#1A1A2E]">{form.totalRoomsCount || 45} Rooms</span>
-                  <button 
-                    type="button" 
-                    onClick={() => handleTextChange('totalRoomsCount', (form.totalRoomsCount || 45) + 1)}
-                    className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400"
-                  >
-                    +
-                  </button>
-                </div>
-              </div>
-
             </div>
 
             {/* CUSTOM SELECTION OPTIONS FOR THEME & FORM TEMPLATE */}
