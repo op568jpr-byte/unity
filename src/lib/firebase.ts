@@ -26,11 +26,38 @@ export const db = config.firestoreDatabaseId
 
 export const firebaseEnabled = true;
 
+// Helper to sanitize data for Firestore (remove undefined and replace with empty string or null)
+function sanitizeForFirestore(data: any): any {
+  if (data === undefined) {
+    return '';
+  }
+  if (data === null) {
+    return null;
+  }
+  if (Array.isArray(data)) {
+    return data.map(item => sanitizeForFirestore(item));
+  }
+  if (typeof data === 'object' && !(data instanceof Date)) {
+    const cleaned: Record<string, any> = {};
+    for (const key of Object.keys(data)) {
+      const val = data[key];
+      if (val !== undefined) {
+        cleaned[key] = sanitizeForFirestore(val);
+      } else {
+        cleaned[key] = '';
+      }
+    }
+    return cleaned;
+  }
+  return data;
+}
+
 // Save or Update a single document in Firestore
 export async function saveDocument(collectionName: string, id: string | number, data: any) {
   try {
+    const sanitized = sanitizeForFirestore(data);
     const docRef = doc(db, collectionName, id.toString());
-    await setDoc(docRef, data);
+    await setDoc(docRef, sanitized);
   } catch (error: any) {
     const isQuota = error?.message?.includes('Quota exceeded') || 
       error?.code?.includes('resource-exhausted') || 

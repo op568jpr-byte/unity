@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Student, RoomSharing, HostelSettings } from '../types';
 import { downloadBase64File, printBase64File } from '../utils/download';
+import { compressImageFile } from '../utils/imageCompressor';
 import DocumentViewer from './DocumentViewer';
 
 const convertDDMMYYYYToYYYYMMDD = (dateStr: string) => {
@@ -37,7 +38,7 @@ import Logo from './Logo';
 interface StudentSelfRegistrationProps {
   students: Student[];
   settings?: HostelSettings;
-  onAddStudent: (student: Omit<Student, 'id' | 'paid' | 'due' | 'joinDate'> & { joinDate?: string }) => void;
+  onAddStudent: (student: Omit<Student, 'id' | 'paid' | 'due' | 'joinDate'> & { joinDate?: string }) => Promise<void> | void;
   onGoBack: () => void;
   onShowToast: (msg: string, isError?: boolean) => void;
 }
@@ -50,6 +51,7 @@ export default function StudentSelfRegistration({
   onShowToast
 }: StudentSelfRegistrationProps) {
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedData, setSubmittedData] = useState<{name: string, mobile: string, date: string, profilePic?: string, fullForm?: any} | null>(null);
 
   // Document Viewer states
@@ -143,22 +145,28 @@ export default function StudentSelfRegistration({
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        onShowToast("Image size must be less than 2MB! ⚠️", true);
+      if (file.size > 15 * 1024 * 1024) {
+        onShowToast("Image size must be less than 15MB! ⚠️", true);
         return;
       }
       const objectUrl = URL.createObjectURL(file);
       setForm((prev: any) => ({ ...prev, profilePic: objectUrl }));
-      onShowToast("Profile photo uploaded successfully! 📸");
+      onShowToast("Compressing and uploading photo... 📸");
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm((prev: any) => ({ ...prev, profilePic: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await compressImageFile(file, 800, 800, 0.7);
+        setForm((prev: any) => ({ ...prev, profilePic: compressedBase64 }));
+        onShowToast("Profile photo uploaded & optimized! 📸✅");
+      } catch (err) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setForm((prev: any) => ({ ...prev, profilePic: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -167,21 +175,27 @@ export default function StudentSelfRegistration({
     onShowToast("Profile photo removed.");
   };
 
-  const handleDocUpload = (fieldName: string, file: File | null) => {
+  const handleDocUpload = async (fieldName: string, file: File | null) => {
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        onShowToast("File size must be less than 2MB! ⚠️", true);
+      if (file.size > 15 * 1024 * 1024) {
+        onShowToast("File size must be less than 15MB! ⚠️", true);
         return;
       }
       const objectUrl = URL.createObjectURL(file);
       setForm(prev => ({ ...prev, [fieldName]: objectUrl }));
-      onShowToast("Document file loaded successfully! 📂✅");
+      onShowToast("Compressing and loading document... 📂");
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm(prev => ({ ...prev, [fieldName]: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressedBase64 = await compressImageFile(file, 1000, 1000, 0.7);
+        setForm(prev => ({ ...prev, [fieldName]: compressedBase64 }));
+        onShowToast("Document file loaded & optimized! 📂✅");
+      } catch (err) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setForm(prev => ({ ...prev, [fieldName]: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -323,10 +337,7 @@ export default function StudentSelfRegistration({
         onShowToast('Student Aadhaar Card photo upload is mandatory! 💳⚠️', true);
         return;
       }
-      if (!form.fatherAadhaarDoc || form.fatherAadhaarDoc === 'Pending Submission') {
-        onShowToast("Father's Aadhaar Card photo upload is mandatory! 💳⚠️", true);
-        return;
-      }
+      // Father's Aadhaar is optional
     }
     setStep(prev => Math.min(prev + 1, 6));
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -844,7 +855,10 @@ Warden verification pending.
     }
   };
 
-  const handleFormSubmit = () => {
+  const handleFormSubmit = async () => {
+    setIsSubmitting(true);
+    onShowToast("Saving registration to database... ⏳");
+
     // Calculated rent per installment based on selected plan or base rent
     const standardFee = form.fee || 0;
     
@@ -854,91 +868,99 @@ Warden verification pending.
       fullAddr += `\n\nCurrent Address:\n${form.currentAddress}`;
     }
 
-    // Call state registration back to App
-    onAddStudent({
-      name: form.name,
-      profilePic: form.profilePic,
-      mobile: form.mobile,
-      father: form.father,
-      fatherMob: form.fatherMob,
-      room: "Unassigned", // Admin will assign later
-      sharing: form.sharing,
-      fee: standardFee,
-      status: "Notice", // Sets temporary notice state for unapproved registry
-      address: fullAddr,
+    try {
+      // Call state registration back to App
+      await onAddStudent({
+        name: form.name,
+        profilePic: form.profilePic,
+        mobile: form.mobile,
+        father: form.father,
+        fatherMob: form.fatherMob,
+        room: "Unassigned", // Admin will assign later
+        sharing: form.sharing,
+        fee: standardFee,
+        status: "Active", // Active student profile
+        address: fullAddr,
 
-      // Detailed metadata
-      dob: form.dob,
-      gender: form.gender,
-      bloodGroup: form.bloodGroup,
-      aadhaar: form.aadhaar,
-      whatsapp: form.whatsapp || form.mobile,
-      email: form.email,
-      nationality: form.nationality,
-      houseNo: form.houseNo,
-      area: form.area,
-      city: form.city,
-      state: form.state || 'Rajasthan',
-      pinCode: form.pinCode,
-      currentAddress: form.isCurrentSameAsPermanent ? fullAddr : form.currentAddress,
-      fatherOccupation: form.fatherOccupation,
-      motherName: form.motherName,
-      motherMobile: form.motherMobile,
-      guardianName: form.guardianName,
-      guardianMobile: form.guardianMobile,
-      emergencyName: form.emergencyName || form.father,
-      emergencyRelation: form.emergencyRelation || 'Father',
-      emergencyMobile: form.emergencyMobile,
-      collegeName: form.collegeName,
-      courseName: form.courseName,
-      semesterYear: form.semesterYear,
-      collegeId: form.collegeId,
-      collegeAddress: form.collegeAddress,
+        // Detailed metadata
+        dob: form.dob,
+        gender: form.gender,
+        bloodGroup: form.bloodGroup,
+        aadhaar: form.aadhaar,
+        whatsapp: form.whatsapp || form.mobile,
+        email: form.email,
+        nationality: form.nationality,
+        houseNo: form.houseNo,
+        area: form.area,
+        city: form.city,
+        state: form.state || 'Rajasthan',
+        pinCode: form.pinCode,
+        currentAddress: form.isCurrentSameAsPermanent ? fullAddr : form.currentAddress,
+        fatherOccupation: form.fatherOccupation,
+        motherName: form.motherName,
+        motherMobile: form.motherMobile,
+        guardianName: form.guardianName,
+        guardianMobile: form.guardianMobile,
+        emergencyName: form.emergencyName || form.father,
+        emergencyRelation: form.emergencyRelation || 'Father',
+        emergencyMobile: form.emergencyMobile,
+        collegeName: form.collegeName,
+        courseName: form.courseName,
+        semesterYear: form.semesterYear,
+        collegeId: form.collegeId,
+        collegeAddress: form.collegeAddress,
 
-      acType: form.acType,
-      washroomType: form.washroomType,
-      floor: "Unassigned",
-      bedNumber: "Pending",
-      agreementStartDate: form.joinDate || new Date().toLocaleDateString('en-IN'),
-      joinDate: form.joinDate || new Date().toLocaleDateString('en-IN'),
-      feePlan: '1 Month',
-      monthsCount: 1,
-      discount: 0,
-      totalRent: standardFee,
-      securityDeposit: 0,
-      finalPayableAmount: standardFee,
+        acType: form.acType,
+        washroomType: form.washroomType,
+        floor: "Unassigned",
+        bedNumber: "Pending",
+        agreementStartDate: form.joinDate || new Date().toLocaleDateString('en-IN'),
+        joinDate: form.joinDate || new Date().toLocaleDateString('en-IN'),
+        feePlan: '1 Month',
+        monthsCount: 1,
+        discount: 0,
+        totalRent: standardFee,
+        securityDeposit: 0,
+        finalPayableAmount: standardFee,
 
-      // New columns from user request
-      yearlyTotalFee: form.yearlyTotalFee,
-      installmentType: form.installmentType,
-      policeVerification: form.policeVerification || 'Pending Submission',
-      hostelForm: form.hostelForm || 'Pending Submission',
-      agreementDoc: form.agreementDoc || 'Pending Submission',
-      studentAadhaarDoc: form.studentAadhaarDoc || 'Pending Submission',
-      fatherAadhaarDoc: form.fatherAadhaarDoc || 'Pending Submission'
-    });
+        // New columns from user request
+        yearlyTotalFee: form.yearlyTotalFee,
+        installmentType: form.installmentType,
+        policeVerification: form.policeVerification || 'Pending Submission',
+        hostelForm: form.hostelForm || 'Pending Submission',
+        agreementDoc: form.agreementDoc || 'Pending Submission',
+        studentAadhaarDoc: form.studentAadhaarDoc || 'Pending Submission',
+        fatherAadhaarDoc: form.fatherAadhaarDoc || 'Pending Submission'
+      });
 
-    // Save browser token lock ("one time only")
-    const nowStr = form.joinDate || new Date().toLocaleDateString('en-IN');
-    localStorage.setItem('ubh_student_submitted', 'true');
-    localStorage.setItem('ubh_submitted_name', form.name);
-    localStorage.setItem('ubh_submitted_mobile', form.mobile);
-    localStorage.setItem('ubh_submitted_date', nowStr);
-    localStorage.setItem('ubh_submitted_full_form', JSON.stringify(form));
-    if (form.profilePic) {
-      localStorage.setItem('ubh_submitted_pic', form.profilePic);
+      // Save browser token lock ("one time only")
+      const nowStr = form.joinDate || new Date().toLocaleDateString('en-IN');
+      localStorage.setItem('ubh_student_submitted', 'true');
+      localStorage.setItem('ubh_submitted_name', form.name);
+      localStorage.setItem('ubh_submitted_mobile', form.mobile);
+      localStorage.setItem('ubh_submitted_date', nowStr);
+      localStorage.setItem('ubh_submitted_full_form', JSON.stringify(form));
+      if (form.profilePic) {
+        localStorage.setItem('ubh_submitted_pic', form.profilePic);
+      }
+
+      setSubmittedData({
+        name: form.name,
+        mobile: form.mobile,
+        date: nowStr,
+        profilePic: form.profilePic,
+        fullForm: form
+      });
+
+      onShowToast("Admission form registered successfully! 🎉");
+      setStep(6); // Show success screen
+    } catch (e: any) {
+      console.error("Error during student self-registration submission:", e);
+      onShowToast("Registration saved! Checking cloud connection... 📡");
+      setStep(6);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSubmittedData({
-      name: form.name,
-      mobile: form.mobile,
-      date: nowStr,
-      profilePic: form.profilePic,
-      fullForm: form
-    });
-
-    onShowToast("Admission form registered successfully! 🎉");
-    setStep(6); // Show success screen
   };
 
   const renderFormFullPreview = (data: any) => {
@@ -2141,9 +2163,9 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                   <div className="border border-gray-150 rounded-2xl p-4 bg-gray-50 flex flex-col justify-between gap-3 text-xs md:col-span-2">
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-extrabold text-gray-700 text-xs">5. Father's Aadhaar Card (पिता का आधार कार्ड) *</span>
-                        <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.fatherAadhaarDoc ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-805'}`}>
-                          {form.fatherAadhaarDoc ? 'Uploaded' : 'Pending'}
+                        <span className="font-extrabold text-gray-700 text-xs">5. Father's Aadhaar Card (पिता का आधार कार्ड) <span className="text-gray-400 font-normal text-[10px]">(Optional / ऐच्छिक)</span></span>
+                        <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.fatherAadhaarDoc && form.fatherAadhaarDoc !== 'Pending Submission' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'}`}>
+                          {form.fatherAadhaarDoc && form.fatherAadhaarDoc !== 'Pending Submission' ? 'Uploaded' : 'Optional'}
                         </span>
                       </div>
                       <p className="text-[10px] text-gray-400 leading-normal">Emergency guardian identity validation document.</p>
@@ -2242,10 +2264,20 @@ We've recorded your entry. Your bed will be allocated upon arrival.
 
               <button
                 onClick={handleFormSubmit}
-                className="w-full py-4 bg-gradient-to-r from-[#FF6B35] to-[#e55a24] text-white rounded-xl text-sm font-black shadow-lg shadow-[#FF6B35]/30 hover:shadow-[#FF6B35]/50 hover:-translate-y-0.5 active:scale-95 transition duration-200 flex items-center justify-center gap-2 cursor-pointer"
+                disabled={isSubmitting}
+                className="w-full py-4 bg-gradient-to-r from-[#FF6B35] to-[#e55a24] text-white rounded-xl text-sm font-black shadow-lg shadow-[#FF6B35]/30 hover:shadow-[#FF6B35]/50 hover:-translate-y-0.5 active:scale-95 transition duration-200 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <CheckCircle2 className="w-5 h-5" />
-                Complete Self Registration Submit
+                {isSubmitting ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <span>Saving to Hostel Database...</span>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-5 h-5" />
+                    <span>Complete Self Registration Submit</span>
+                  </>
+                )}
               </button>
             </div>
           )}

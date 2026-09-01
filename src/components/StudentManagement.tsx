@@ -119,6 +119,42 @@ export default function StudentManagement({
 
       </div>
 
+      {/* Online Admissions / Unassigned Rooms Alert Banner */}
+      {students.filter(s => s.room === 'Unassigned' || s.room === 'Pending' || !s.room).length > 0 && (
+        <div className="p-4 bg-gradient-to-r from-orange-500/10 via-amber-500/10 to-orange-500/5 border-2 border-[#FF6B35]/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-[#FF6B35] text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+              <UserPlus className="w-5 h-5" />
+            </div>
+            <div>
+              <h5 className="font-extrabold text-xs sm:text-sm text-gray-900 flex items-center gap-2">
+                New Online Student Admissions
+                <span className="px-2 py-0.5 rounded-full bg-[#FF6B35] text-white text-[10px] font-black">
+                  {students.filter(s => s.room === 'Unassigned' || s.room === 'Pending' || !s.room).length} Pending
+                </span>
+              </h5>
+              <p className="text-[11px] text-gray-500 mt-0.5">
+                Students submitted via self-registration form awaiting Room & Bed allocation.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {students.filter(s => s.room === 'Unassigned' || s.room === 'Pending' || !s.room).map(unassigned => (
+              <button
+                key={unassigned.id}
+                onClick={() => {
+                  if (onEditStudent) onEditStudent(unassigned);
+                }}
+                className="px-3 py-1.5 bg-[#FF6B35] text-white rounded-lg text-xs font-bold hover:bg-[#e55a24] transition shadow-xs flex items-center gap-1 cursor-pointer active:scale-95"
+              >
+                <span>Assign {unassigned.name}</span>
+                <PenSquare className="w-3.5 h-3.5" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Structured Table of Data results */}
       <div className="overflow-x-auto border border-gray-100 rounded-2xl">
         <table className="w-full text-left border-collapse font-sans text-xs sm:text-sm">
@@ -167,9 +203,20 @@ export default function StudentManagement({
 
                     {/* Room block */}
                     <td className="py-4 px-5 font-bold">
-                      <span className="px-3 py-1 rounded-lg bg-orange-50 border border-orange-100 text-[#FF6B35]">
-                        Room {s.room}
-                      </span>
+                      {s.room === 'Unassigned' || s.room === 'Pending' || !s.room ? (
+                        <button
+                          onClick={() => onEditStudent && onEditStudent(s)}
+                          className="px-2.5 py-1 rounded-lg bg-amber-100/80 border border-amber-300 text-amber-800 text-xs font-black hover:bg-amber-200 transition cursor-pointer flex items-center gap-1"
+                          title="Click to assign room"
+                        >
+                          <span>Unassigned</span>
+                          <PenSquare className="w-3 h-3 text-amber-700" />
+                        </button>
+                      ) : (
+                        <span className="px-3 py-1 rounded-lg bg-orange-50 border border-orange-100 text-[#FF6B35]">
+                          Room {s.room}
+                        </span>
+                      )}
                     </td>
 
                     {/* Bed style */}

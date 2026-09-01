@@ -438,6 +438,41 @@ export default function DashboardHome({
         ))}
       </div>
 
+      {/* Online Registrations Pending Room Assignment Alert Banner */}
+      {students.filter(s => s.room === 'Unassigned' || s.room === 'Pending' || !s.room).length > 0 && (
+        <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-[#FF6B35] text-white p-5 rounded-2xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-fade-in">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-xs flex items-center justify-center flex-shrink-0 text-white border border-white/30">
+              <UserPlus className="w-6 h-6 animate-bounce" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="bg-white text-[#FF6B35] text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Action Needed</span>
+                <span className="text-xs font-bold text-orange-100">Self-Registration Portal</span>
+              </div>
+              <h4 className="text-base font-extrabold mt-0.5">
+                {students.filter(s => s.room === 'Unassigned' || s.room === 'Pending' || !s.room).length} New Student Admission(s) Received!
+              </h4>
+              <p className="text-xs text-orange-100 mt-0.5">
+                Students submitted their admission form online. Click to assign them a room and bed.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {students.filter(s => s.room === 'Unassigned' || s.room === 'Pending' || !s.room).map(unassigned => (
+              <button
+                key={unassigned.id}
+                onClick={() => onEditStudent(unassigned)}
+                className="px-4 py-2 bg-white text-gray-900 font-extrabold text-xs rounded-xl shadow hover:bg-orange-50 transition active:scale-95 flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Assign {unassigned.name}</span>
+                <PenSquare className="w-3.5 h-3.5 text-[#FF6B35]" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Quick Actions Panel */}
       <div>
         <div className="flex items-center gap-2 mb-4">

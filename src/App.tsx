@@ -767,24 +767,28 @@ export default function App() {
   // --- CRUD BUSINESS HANDLERS ---
 
   // Registering fresh students or editing existing ones
-  const handleAddStudent = (fields: Omit<Student, 'id' | 'paid' | 'due' | 'joinDate'> & { id?: number; paid?: number; due?: number; joinDate?: string }) => {
+  const handleAddStudent = async (fields: Omit<Student, 'id' | 'paid' | 'due' | 'joinDate'> & { id?: number; paid?: number; due?: number; joinDate?: string }) => {
     if (fields.id) {
       // Edit mode!
-      const updated = students.map(s => {
-        if (s.id === fields.id) {
-          const finalPayable = fields.finalPayableAmount !== undefined ? fields.finalPayableAmount : fields.fee;
-          return {
-            ...s,
-            ...fields,
-            due: Math.max(0, finalPayable - (s.paid || 0))
-          } as Student;
-        }
-        return s;
-      });
-      handleStudentsUpdate(updated);
+      const finalPayable = fields.finalPayableAmount !== undefined ? fields.finalPayableAmount : fields.fee;
+      const existing = students.find(s => s.id === fields.id);
+      const updatedStudent: Student = {
+        ...(existing || {}),
+        ...fields,
+        due: Math.max(0, finalPayable - ((existing?.paid) || fields.paid || 0))
+      } as Student;
+
+      const updated = students.map(s => s.id === fields.id ? updatedStudent : s);
+      setStudents(updated);
+      safeStorage.setItem('ubh_students', JSON.stringify(updated));
       setIsStudentModalOpen(false);
       setStudentToEdit(null);
       showToast(`Updated student profile for "${fields.name}" successfully! ✏️`);
+      try {
+        await saveDocument('students', updatedStudent.id, updatedStudent);
+      } catch (e) {
+        console.error('Error saving updated student to Firebase:', e);
+      }
     } else {
       // Add mode!
       const defaultDue = fields.finalPayableAmount !== undefined ? fields.finalPayableAmount : fields.fee;
@@ -793,13 +797,19 @@ export default function App() {
         id: Date.now(),
         paid: 0,
         due: defaultDue,
-        joinDate: new Date().toLocaleDateString('en-IN')
+        joinDate: fields.joinDate || new Date().toLocaleDateString('en-IN')
       } as Student;
 
-      const newArr = [...students, freshStudent];
-      handleStudentsUpdate(newArr);
+      const newArr = [freshStudent, ...students.filter(s => s.id !== freshStudent.id)];
+      setStudents(newArr);
+      safeStorage.setItem('ubh_students', JSON.stringify(newArr));
       setIsStudentModalOpen(false);
       showToast(`Registered lodger: "${fields.name}" in Room ${fields.room}! 🏠`);
+      try {
+        await saveDocument('students', freshStudent.id, freshStudent);
+      } catch (e) {
+        console.error('Error saving fresh student to Firebase:', e);
+      }
     }
   };
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Student, RoomSharing, StudentStatus } from '../types';
 import { User, MapPin, ShieldAlert, BookOpen, GraduationCap, DollarSign, Calendar, Landmark, CreditCard, ChevronRight, ChevronLeft, Camera, Upload, Trash2, Check, RefreshCw, X, FileSpreadsheet, FileText, Printer } from 'lucide-react';
 import { printBase64File } from '../utils/download';
+import { compressImageFile } from '../utils/imageCompressor';
 
 const convertDDMMYYYYToYYYYMMDD = (dateStr: string) => {
   if (!dateStr) return '';
@@ -95,22 +96,28 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        if (onShowToast) onShowToast("Image size must be less than 2MB! ⚠️", true);
+      if (file.size > 15 * 1024 * 1024) {
+        if (onShowToast) onShowToast("Image size must be less than 15MB! ⚠️", true);
         return;
       }
       const objectUrl = URL.createObjectURL(file);
       setForm((prev: any) => ({ ...prev, profilePic: objectUrl }));
-      if (onShowToast) onShowToast("Profile photo uploaded successfully! 📸");
+      if (onShowToast) onShowToast("Compressing and uploading photo... 📸");
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm((prev: any) => ({ ...prev, profilePic: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageFile(file, 800, 800, 0.7);
+        setForm((prev: any) => ({ ...prev, profilePic: compressed }));
+        if (onShowToast) onShowToast("Profile photo uploaded & optimized! 📸✅");
+      } catch (err) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setForm((prev: any) => ({ ...prev, profilePic: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -119,21 +126,27 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
     if (onShowToast) onShowToast("Profile photo removed.");
   };
 
-  const handleDocUpload = (fieldName: string, file: File | null) => {
+  const handleDocUpload = async (fieldName: string, file: File | null) => {
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        if (onShowToast) onShowToast("File size must be less than 2MB! ⚠️", true);
+      if (file.size > 15 * 1024 * 1024) {
+        if (onShowToast) onShowToast("File size must be less than 15MB! ⚠️", true);
         return;
       }
       const objectUrl = URL.createObjectURL(file);
       setForm((prev: any) => ({ ...prev, [fieldName]: objectUrl }));
-      if (onShowToast) onShowToast("Document loaded successfully! 📂");
+      if (onShowToast) onShowToast("Compressing and loading document... 📂");
 
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm((prev: any) => ({ ...prev, [fieldName]: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImageFile(file, 1000, 1000, 0.7);
+        setForm((prev: any) => ({ ...prev, [fieldName]: compressed }));
+        if (onShowToast) onShowToast("Document loaded & optimized! 📂✅");
+      } catch (err) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setForm((prev: any) => ({ ...prev, [fieldName]: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -431,12 +444,7 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
         if (onShowToast) onShowToast(msg, true);
         return;
       }
-      if (!form.fatherAadhaarDoc || form.fatherAadhaarDoc === 'Pending' || form.fatherAadhaarDoc === 'Pending Submission') {
-        const msg = "Father's Aadhaar Card upload or status selection is mandatory! 💳⚠️";
-        setErrorMsg(msg);
-        if (onShowToast) onShowToast(msg, true);
-        return;
-      }
+      // Father's Aadhaar is optional
     }
     setStep(prev => Math.min(prev + 1, 6));
   };
@@ -1547,15 +1555,16 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 text-xs">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="font-black text-gray-800 block text-[11px]">5. Father's Aadhaar Card *</span>
-                    <span className="text-[10px] text-gray-400">पिता का आधार कार्ड</span>
+                    <span className="font-black text-gray-800 block text-[11px]">5. Father's Aadhaar Card <span className="text-gray-400 font-normal">(Optional)</span></span>
+                    <span className="text-[10px] text-gray-400">पिता का आधार कार्ड (ऐच्छिक)</span>
                   </div>
                   <div>
                     <select
-                      value={form.fatherAadhaarDoc && form.fatherAadhaarDoc.startsWith('data:') ? 'Received (Digital)' : (form.fatherAadhaarDoc || 'Pending')}
+                      value={form.fatherAadhaarDoc && form.fatherAadhaarDoc.startsWith('data:') ? 'Received (Digital)' : (form.fatherAadhaarDoc || 'Not Provided')}
                       onChange={e => setForm({ ...form, fatherAadhaarDoc: e.target.value })}
                       className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-white border border-gray-250 cursor-pointer text-[#1A1A2E]"
                     >
+                      <option value="Not Provided">⚪ Not Provided</option>
                       <option value="Pending">❌ Pending</option>
                       <option value="Received Handover">✅ Received</option>
                     </select>

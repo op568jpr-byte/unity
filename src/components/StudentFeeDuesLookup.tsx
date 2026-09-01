@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Student, HostelSettings, Payment, Complaint, MessMenu, MessMenuItem } from '../types';
 import { downloadBase64File, printBase64File } from '../utils/download';
+import { compressImageFile } from '../utils/imageCompressor';
 import DocumentViewer from './DocumentViewer';
 
 interface StudentFeeDuesLookupProps {
@@ -272,24 +273,36 @@ export default function StudentFeeDuesLookup({
     { key: 'fatherAadhaarDoc', label: "Father's Aadhaar Card", labelHi: 'पिता का आधार कार्ड' }
   ];
 
-  const handlePortalDocUpload = (fieldName: 'policeVerification' | 'hostelForm' | 'agreementDoc' | 'studentAadhaarDoc' | 'fatherAadhaarDoc', file: File | null) => {
+  const handlePortalDocUpload = async (fieldName: 'policeVerification' | 'hostelForm' | 'agreementDoc' | 'studentAadhaarDoc' | 'fatherAadhaarDoc', file: File | null) => {
     if (!matchedStudent) return;
     if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        onShowToast("File size must be less than 2MB! ⚠️", true);
+      if (file.size > 15 * 1024 * 1024) {
+        onShowToast("File size must be less than 15MB! ⚠️", true);
         return;
       }
-      const reader = new FileReader();
-      reader.onloadend = () => {
+      onShowToast("दस्तावेज कंप्रेस और अपलोड हो रहा है... 📂");
+      try {
+        const compressedBase64 = await compressImageFile(file, 1000, 1000, 0.7);
         const updated: Student = {
           ...matchedStudent,
-          [fieldName]: reader.result as string
+          [fieldName]: compressedBase64
         };
         onUpdateStudent(updated);
         setMatchedStudent(updated);
-        onShowToast("दस्तावेज सफलतापूर्वक अपलोड किया गया! 📂");
-      };
-      reader.readAsDataURL(file);
+        onShowToast("दस्तावेज सफलतापूर्वक अपलोड किया गया! 📂✅");
+      } catch (err) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const updated: Student = {
+            ...matchedStudent,
+            [fieldName]: reader.result as string
+          };
+          onUpdateStudent(updated);
+          setMatchedStudent(updated);
+          onShowToast("दस्तावेज सफलतापूर्वक अपलोड किया गया! 📂");
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
