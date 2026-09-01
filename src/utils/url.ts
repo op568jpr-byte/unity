@@ -2,8 +2,12 @@
  * Utility for handling URLs in hosted vs local offline standalone (file://) environments.
  */
 
+/**
+ * Utility for handling URLs in hosted vs local offline standalone (file://) environments.
+ */
+
 export function getLiveAppUrl(): string {
-  const defaultUrl = 'https://ais-pre-cwfhs3kjnhahsqos4mg4ru-1012192092682.asia-southeast1.run.app';
+  const defaultUrl = 'https://ais-pre-gxe6atj2ki3wnb6t5p7nkr-71297047795.asia-southeast1.run.app';
   if (typeof window === 'undefined' || !window.location) {
     return defaultUrl;
   }
@@ -12,5 +16,8 @@ export function getLiveAppUrl(): string {
   if (!origin || origin.startsWith('file:') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
     return defaultUrl;
   }
-  return origin;
+  // If the origin is a valid web URL
+  const pathname = window.location.pathname && window.location.pathname !== '/' ? window.location.pathname.replace(/\/+$/, '') : '';
+  return `${origin.replace(/\/+$/, '')}${pathname}`;
 }
+

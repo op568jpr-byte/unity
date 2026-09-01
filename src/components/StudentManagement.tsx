@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, UserPlus, Eye, Trash2, Filter, AlertCircle, PhoneCall, Info, Link, PenSquare } from 'lucide-react';
+import { Search, UserPlus, Eye, Trash2, Filter, AlertCircle, PhoneCall, Info, Link, PenSquare, Share2, Copy, Check, ExternalLink, MessageCircle, X } from 'lucide-react';
 import { Student, RoomSharing, StudentStatus } from '../types';
 import { getLiveAppUrl } from '../utils/url';
 import ConfirmationModal from './ConfirmationModal';
@@ -27,6 +27,35 @@ export default function StudentManagement({
   const [sharingFilter, setSharingFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const registrationLink = getLiveAppUrl() + '?mode=student-form';
+
+  const handleCopyLink = () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(registrationLink);
+      } else {
+        const input = document.createElement('input');
+        input.value = registrationLink;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+      if (onShowToast) onShowToast('Admission Form Link copied! 📋');
+    } catch (e) {
+      if (onShowToast) onShowToast('Copied link to clipboard! 📋');
+    }
+  };
+
+  const handleWhatsAppShare = () => {
+    const text = `🏛️ *UNITY BOYS HOSTEL, JAIPUR*\n📝 *Online Admission / Registration Form:*\n${registrationLink}\n\nकृपया नए एडमिशन के लिए ऊपर दिए गए लिंक पर अपनी जानकारी भरें। फॉर्म भरते ही आपका डेटा सीधे हॉस्टल डेटाबेस में रजिस्टर हो जाएगा।`;
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+  };
 
   const filteredStudents = students.filter(s => {
     const matchesSearch = s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -97,15 +126,11 @@ export default function StudentManagement({
           </div>
 
           <button
-            onClick={() => {
-              const link = getLiveAppUrl() + '?mode=student-form';
-              navigator.clipboard.writeText(link);
-              if (onShowToast) onShowToast('Admission Form Link copied! Send this to students to fill. 📋');
-            }}
-            className="px-4 py-2.5 border border-[#FF6B35] text-[#FF6B35] hover:bg-[#FF6B35] hover:text-white rounded-xl text-xs sm:text-sm font-bold transition duration-150 active:scale-95 cursor-pointer flex items-center gap-1.5"
+            onClick={() => setIsShareModalOpen(true)}
+            className="px-4 py-2.5 bg-orange-50 border border-[#FF6B35] text-[#FF6B35] hover:bg-[#FF6B35] hover:text-white rounded-xl text-xs sm:text-sm font-bold transition duration-150 active:scale-95 cursor-pointer flex items-center gap-1.5 shadow-xs"
           >
-            <Link className="w-4 h-4" />
-            Share Form
+            <Share2 className="w-4 h-4" />
+            Share Form Link
           </button>
 
           <button
@@ -323,6 +348,85 @@ export default function StudentManagement({
         requireReason={true}
         reasonPlaceholder="लिखें कि छात्र को क्यों हटाया जा रहा है (उदा. कोर्स पूरा हुआ, हॉस्टल छोड़ दिया, आदि)..."
       />
+
+      {/* Share Admission Form Link Modal */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 space-y-5 relative">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-orange-50 text-[#FF6B35] flex items-center justify-center font-black">
+                  <Share2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-gray-900">Share Admission Form Link</h3>
+                  <p className="text-xs text-gray-500">Send this link to prospective students to register</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsShareModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 text-gray-400 hover:text-gray-700 flex items-center justify-center cursor-pointer transition"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Live Link Field */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-700">Official Student Self-Registration URL:</label>
+              <div className="flex items-center gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded-2xl">
+                <input
+                  type="text"
+                  readOnly
+                  value={registrationLink}
+                  className="bg-transparent border-0 text-xs font-semibold text-gray-700 w-full outline-none select-all"
+                />
+                <button
+                  onClick={handleCopyLink}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer flex-shrink-0 ${
+                    copied 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-[#1A1A2E] text-white hover:bg-[#2e2e4f]'
+                  }`}
+                >
+                  {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={handleWhatsAppShare}
+                className="w-full py-3 bg-[#25D366] hover:bg-[#20ba5a] text-white font-extrabold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 transition shadow-md shadow-[#25D366]/20 active:scale-95 cursor-pointer"
+              >
+                <MessageCircle className="w-4.5 h-4.5" />
+                Share on WhatsApp
+              </button>
+
+              <button
+                onClick={() => window.open(registrationLink, '_blank')}
+                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 font-extrabold text-xs sm:text-sm rounded-2xl flex items-center justify-center gap-2 transition active:scale-95 cursor-pointer"
+              >
+                <ExternalLink className="w-4 h-4" />
+                Open & Test Form
+              </button>
+            </div>
+
+            {/* Cloud Sync Assurance Note */}
+            <div className="p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl text-[11px] text-emerald-800 flex items-start gap-2">
+              <div className="w-2 h-2 rounded-full bg-emerald-500 mt-1 flex-shrink-0 animate-ping" />
+              <div>
+                <p className="font-bold">⚡ Instant Real-Time Database Sync:</p>
+                <p className="text-emerald-700/90 mt-0.5">
+                  जब भी कोई छात्र इस लिंक से फॉर्म भरेगा, उसका पूरा डेटा (फोटो, आधार, गार्जियन डिटेल्स) तुरंत आपके एडमिन पोर्टल पर <strong>Active Students</strong> में दर्ज हो जाएगा।
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

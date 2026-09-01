@@ -448,13 +448,41 @@ export default function App() {
       console.error('Error loading cached session:', e);
     }
 
-    // Check for self registration form requests
-    const uParams = new URLSearchParams(window.location.search);
-    if (uParams.get('mode') === 'student-form' || window.location.hash === '#student-form') {
-      setCurView('student-registration');
-    } else if (uParams.get('mode') === 'check-dues' || window.location.hash === '#check-dues') {
-      setCurView('student-dues-lookup');
-    }
+    // Check for self registration form or dues lookup requests from URL
+    const checkUrlRoute = () => {
+      const uParams = new URLSearchParams(window.location.search);
+      const mode = (uParams.get('mode') || uParams.get('action') || uParams.get('view') || '').toLowerCase();
+      const hash = (window.location.hash || '').toLowerCase();
+      const path = (window.location.pathname || '').toLowerCase();
+
+      if (
+        mode === 'student-form' ||
+        mode === 'student_form' ||
+        mode === 'studentform' ||
+        mode === 'register' ||
+        mode === 'admission' ||
+        hash === '#student-form' ||
+        hash === '#student_form' ||
+        hash === '#register' ||
+        hash === '#admission' ||
+        path.endsWith('/student-form') ||
+        path.endsWith('/register')
+      ) {
+        setCurView('student-registration');
+      } else if (
+        mode === 'check-dues' ||
+        mode === 'check_dues' ||
+        mode === 'dues' ||
+        hash === '#check-dues' ||
+        hash === '#dues'
+      ) {
+        setCurView('student-dues-lookup');
+      }
+    };
+
+    checkUrlRoute();
+    window.addEventListener('popstate', checkUrlRoute);
+    window.addEventListener('hashchange', checkUrlRoute);
 
     const handleQuotaExceeded = () => {
       setIsQuotaExceeded(true);
@@ -469,6 +497,8 @@ export default function App() {
       unsubWithdrawals();
       unsubExpenses();
       unsubSettings();
+      window.removeEventListener('popstate', checkUrlRoute);
+      window.removeEventListener('hashchange', checkUrlRoute);
       window.removeEventListener('firestore-quota-exceeded', handleQuotaExceeded);
     };
   }, []);

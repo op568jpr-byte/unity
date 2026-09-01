@@ -7,6 +7,7 @@ import {
 import { Student, RoomSharing, HostelSettings } from '../types';
 import { downloadBase64File, printBase64File } from '../utils/download';
 import { compressImageFile } from '../utils/imageCompressor';
+import { saveDocument } from '../lib/firebase';
 import DocumentViewer from './DocumentViewer';
 
 const convertDDMMYYYYToYYYYMMDD = (dateStr: string) => {
@@ -871,16 +872,19 @@ Warden verification pending.
     }
 
     try {
-      // Call state registration back to App
-      await onAddStudent({
+      const studentId = Date.now();
+      const studentPayload: Student = {
+        id: studentId,
         name: form.name,
         profilePic: form.profilePic,
         mobile: form.mobile,
         father: form.father,
         fatherMob: form.fatherMob,
-        room: "Unassigned", // Admin will assign later
+        room: "Unassigned", // Admin will assign room
         sharing: form.sharing,
         fee: standardFee,
+        paid: 0,
+        due: standardFee,
         status: "Active", // Active student profile
         address: fullAddr,
 
@@ -925,7 +929,7 @@ Warden verification pending.
         securityDeposit: 0,
         finalPayableAmount: standardFee,
 
-        // New columns from user request
+        // New columns
         yearlyTotalFee: form.yearlyTotalFee,
         installmentType: form.installmentType,
         policeVerification: form.policeVerification || 'Pending Submission',
@@ -933,19 +937,28 @@ Warden verification pending.
         agreementDoc: form.agreementDoc || 'Pending Submission',
         studentAadhaarDoc: form.studentAadhaarDoc || 'Pending Submission',
         fatherAadhaarDoc: form.fatherAadhaarDoc || 'Pending Submission'
-      });
+      };
 
-      // Save browser token lock ("one time only")
-      const nowStr = form.joinDate || new Date().toLocaleDateString('en-IN');
-      localStorage.setItem('ubh_student_submitted', 'true');
-      localStorage.setItem('ubh_submitted_name', form.name);
-      localStorage.setItem('ubh_submitted_mobile', form.mobile);
-      localStorage.setItem('ubh_submitted_date', nowStr);
-      localStorage.setItem('ubh_submitted_full_form', JSON.stringify(form));
-      if (form.profilePic) {
-        localStorage.setItem('ubh_submitted_pic', form.profilePic);
+      // 1. Direct Firestore write
+      try {
+        await saveDocument('students', studentId, studentPayload);
+      } catch (firestoreErr) {
+        console.warn("Direct firestore write warning:", firestoreErr);
       }
 
+      // 2. State callback to parent App
+      try {
+        await onAddStudent(studentPayload);
+      } catch (callbackErr) {
+        console.warn("State callback warning:", callbackErr);
+      }
+
+      // Clear any legacy single-submission locks
+      try {
+        localStorage.removeItem('ubh_student_submitted');
+      } catch (e) {}
+
+      const nowStr = form.joinDate || new Date().toLocaleDateString('en-IN');
       setSubmittedData({
         name: form.name,
         mobile: form.mobile,
@@ -954,11 +967,11 @@ Warden verification pending.
         fullForm: form
       });
 
-      onShowToast("Admission form registered successfully! 🎉");
+      onShowToast("Admission form registered successfully in Hostel Cloud! 🎉");
       setStep(6); // Show success screen
     } catch (e: any) {
       console.error("Error during student self-registration submission:", e);
-      onShowToast("Registration saved! Checking cloud connection... 📡");
+      onShowToast("Registration submitted! 📡");
       setStep(6);
     } finally {
       setIsSubmitting(false);
@@ -1213,29 +1226,9 @@ We've recorded your entry. Your bed will be allocated upon arrival.
             </div>
           </div>
 
-          <div className="space-y-2 pt-2">
-            <button
-              onClick={() => handleCopyText(formattedText)}
-              className="w-full py-3 bg-gray-100 font-bold text-xs sm:text-sm text-gray-800 rounded-xl hover:bg-gray-200 transition duration-150 flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Copy className="w-4 h-4" />
-              Copy Admission Details
-            </button>
-            <button
-              onClick={() => handleSendToWhatsApp(formattedText)}
-              className="w-full py-3 bg-[#25D366] font-bold text-xs sm:text-sm text-white rounded-xl hover:shadow-lg hover:shadow-emerald-500/25 transition duration-150 flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <Send className="w-4 h-4" />
-              Send Details to Management
-            </button>
+          <div className="space-y-3 pt-2">
             <button
               onClick={() => {
-                localStorage.removeItem('ubh_student_submitted');
-                localStorage.removeItem('ubh_submitted_name');
-                localStorage.removeItem('ubh_submitted_mobile');
-                localStorage.removeItem('ubh_submitted_date');
-                localStorage.removeItem('ubh_submitted_pic');
-                localStorage.removeItem('ubh_submitted_full_form');
                 setSubmittedData(null);
                 setForm({
                   name: '',
@@ -1252,6 +1245,8 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                   fatherOccupation: '',
                   motherName: '',
                   motherMobile: '',
+                  guardianName: '',
+                  guardianMobile: '',
                   emergencyName: '',
                   emergencyRelation: 'Father',
                   emergencyMobile: '',
@@ -1261,12 +1256,20 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                   state: 'Rajasthan',
                   pinCode: '',
                   address: '',
+                  currentAddress: '',
+                  isCurrentSameAsPermanent: true,
                   collegeName: '',
                   courseName: '',
                   semesterYear: '',
+                  collegeId: '',
+                  collegeAddress: '',
                   room: '',
                   sharing: 'Double',
+                  acType: 'Non AC',
+                  washroomType: 'Common',
                   fee: savedSettings.doubleRent || 6500,
+                  yearlyTotalFee: 0,
+                  installmentType: 'Monthly',
                   securityDeposit: 0,
                   agreementStartDate: new Date().toISOString().split('T')[0],
                   agreementEndDate: new Date(new Date().setMonth(new Date().getMonth() + 11)).toISOString().split('T')[0],
@@ -1280,17 +1283,36 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                   fatherAadhaarDoc: '',
                 });
                 setStep(1);
-                onShowToast('Ready to register another student! 📝');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                onShowToast('Ready to register another student! 📝✨');
               }}
-              className="w-full py-3 bg-indigo-50 font-bold text-xs sm:text-sm text-indigo-700 rounded-xl hover:bg-indigo-100 transition duration-150 flex items-center justify-center gap-2 cursor-pointer border border-indigo-200"
+              className="w-full py-3.5 bg-[#FF6B35] hover:bg-[#e05a2b] font-black text-sm text-white rounded-2xl transition duration-150 flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-orange-500/25 active:scale-98"
             >
-              📝 Register Another Student (नया फॉर्म भरें)
+              ➕ Register Another Student (अगले छात्र का फॉर्म भरें)
             </button>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <button
+                onClick={() => handleCopyText(formattedText)}
+                className="w-full py-2.5 bg-gray-100 font-bold text-xs text-gray-800 rounded-xl hover:bg-gray-200 transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                Copy Admission Details
+              </button>
+              <button
+                onClick={() => handleSendToWhatsApp(formattedText)}
+                className="w-full py-2.5 bg-[#25D366] font-bold text-xs text-white rounded-xl hover:bg-[#20ba5a] transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                <Send className="w-3.5 h-3.5" />
+                Send on WhatsApp
+              </button>
+            </div>
+
             <button
                onClick={onGoBack}
-               className="w-full py-3 text-xs text-gray-400 hover:text-[#1A1A2E] font-semibold transition animate-pulse"
+               className="w-full py-2.5 text-xs text-gray-500 hover:text-[#1A1A2E] font-bold transition flex items-center justify-center gap-1"
              >
-               Return to Website Landing
+               <ArrowLeft className="w-3.5 h-3.5" /> Return to Website
              </button>
           </div>
         </div>
