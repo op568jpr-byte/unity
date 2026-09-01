@@ -148,24 +148,25 @@ export default function StudentSelfRegistration({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        onShowToast("Image size must be less than 15MB! ⚠️", true);
+      if (file.size > 20 * 1024 * 1024) {
+        onShowToast("Image size must be less than 20MB! ⚠️", true);
         return;
       }
-      const objectUrl = URL.createObjectURL(file);
-      setForm((prev: any) => ({ ...prev, profilePic: objectUrl }));
-      onShowToast("Compressing and uploading photo... 📸");
+      onShowToast("Compressing & uploading photo... 📸");
 
       try {
-        const compressedBase64 = await compressImageFile(file, 800, 800, 0.7);
+        const compressedBase64 = await compressImageFile(file, 640, 640, 0.65);
         setForm((prev: any) => ({ ...prev, profilePic: compressedBase64 }));
-        onShowToast("Profile photo uploaded & optimized! 📸✅");
+        onShowToast("Profile photo optimized & ready! 📸✅");
       } catch (err) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setForm((prev: any) => ({ ...prev, profilePic: reader.result as string }));
-        };
-        reader.readAsDataURL(file);
+        try {
+          const fallbackBase64 = await compressImageFile(file, 480, 480, 0.5);
+          setForm((prev: any) => ({ ...prev, profilePic: fallbackBase64 }));
+          onShowToast("Profile photo compressed! 📸✅");
+        } catch (e) {
+          console.error('Error compressing photo:', e);
+          onShowToast("Could not process photo. Please select a JPEG/PNG photo. ⚠️", true);
+        }
       }
     }
   };
@@ -177,24 +178,25 @@ export default function StudentSelfRegistration({
 
   const handleDocUpload = async (fieldName: string, file: File | null) => {
     if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        onShowToast("File size must be less than 15MB! ⚠️", true);
+      if (file.size > 20 * 1024 * 1024) {
+        onShowToast("File size must be less than 20MB! ⚠️", true);
         return;
       }
-      const objectUrl = URL.createObjectURL(file);
-      setForm(prev => ({ ...prev, [fieldName]: objectUrl }));
-      onShowToast("Compressing and loading document... 📂");
+      onShowToast("Compressing & loading document... 📂");
 
       try {
-        const compressedBase64 = await compressImageFile(file, 1000, 1000, 0.7);
+        const compressedBase64 = await compressImageFile(file, 800, 800, 0.65);
         setForm(prev => ({ ...prev, [fieldName]: compressedBase64 }));
-        onShowToast("Document file loaded & optimized! 📂✅");
+        onShowToast("Document optimized & attached! 📂✅");
       } catch (err) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setForm(prev => ({ ...prev, [fieldName]: reader.result as string }));
-        };
-        reader.readAsDataURL(file);
+        try {
+          const fallbackBase64 = await compressImageFile(file, 600, 600, 0.5);
+          setForm(prev => ({ ...prev, [fieldName]: fallbackBase64 }));
+          onShowToast("Document compressed & attached! 📂✅");
+        } catch (e) {
+          console.error('Error compressing doc:', e);
+          onShowToast("Could not process document. Please select a valid image file. ⚠️", true);
+        }
       }
     }
   };

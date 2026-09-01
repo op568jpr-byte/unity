@@ -99,24 +99,25 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        if (onShowToast) onShowToast("Image size must be less than 15MB! ⚠️", true);
+      if (file.size > 20 * 1024 * 1024) {
+        if (onShowToast) onShowToast("Image size must be less than 20MB! ⚠️", true);
         return;
       }
-      const objectUrl = URL.createObjectURL(file);
-      setForm((prev: any) => ({ ...prev, profilePic: objectUrl }));
-      if (onShowToast) onShowToast("Compressing and uploading photo... 📸");
+      if (onShowToast) onShowToast("Compressing & uploading photo... 📸");
 
       try {
-        const compressed = await compressImageFile(file, 800, 800, 0.7);
+        const compressed = await compressImageFile(file, 640, 640, 0.65);
         setForm((prev: any) => ({ ...prev, profilePic: compressed }));
-        if (onShowToast) onShowToast("Profile photo uploaded & optimized! 📸✅");
+        if (onShowToast) onShowToast("Profile photo optimized & ready! 📸✅");
       } catch (err) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setForm((prev: any) => ({ ...prev, profilePic: reader.result as string }));
-        };
-        reader.readAsDataURL(file);
+        try {
+          const fallback = await compressImageFile(file, 480, 480, 0.5);
+          setForm((prev: any) => ({ ...prev, profilePic: fallback }));
+          if (onShowToast) onShowToast("Profile photo compressed! 📸✅");
+        } catch (e) {
+          console.error(e);
+          if (onShowToast) onShowToast("Could not process photo format. ⚠️", true);
+        }
       }
     }
   };
@@ -128,24 +129,25 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
 
   const handleDocUpload = async (fieldName: string, file: File | null) => {
     if (file) {
-      if (file.size > 15 * 1024 * 1024) {
-        if (onShowToast) onShowToast("File size must be less than 15MB! ⚠️", true);
+      if (file.size > 20 * 1024 * 1024) {
+        if (onShowToast) onShowToast("File size must be less than 20MB! ⚠️", true);
         return;
       }
-      const objectUrl = URL.createObjectURL(file);
-      setForm((prev: any) => ({ ...prev, [fieldName]: objectUrl }));
-      if (onShowToast) onShowToast("Compressing and loading document... 📂");
+      if (onShowToast) onShowToast("Compressing & loading document... 📂");
 
       try {
-        const compressed = await compressImageFile(file, 1000, 1000, 0.7);
+        const compressed = await compressImageFile(file, 800, 800, 0.65);
         setForm((prev: any) => ({ ...prev, [fieldName]: compressed }));
-        if (onShowToast) onShowToast("Document loaded & optimized! 📂✅");
+        if (onShowToast) onShowToast("Document optimized & attached! 📂✅");
       } catch (err) {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setForm((prev: any) => ({ ...prev, [fieldName]: reader.result as string }));
-        };
-        reader.readAsDataURL(file);
+        try {
+          const fallback = await compressImageFile(file, 600, 600, 0.5);
+          setForm((prev: any) => ({ ...prev, [fieldName]: fallback }));
+          if (onShowToast) onShowToast("Document compressed & attached! 📂✅");
+        } catch (e) {
+          console.error(e);
+          if (onShowToast) onShowToast("Could not process document format. ⚠️", true);
+        }
       }
     }
   };

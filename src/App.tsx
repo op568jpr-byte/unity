@@ -786,15 +786,16 @@ export default function App() {
       showToast(`Updated student profile for "${fields.name}" successfully! ✏️`);
       try {
         await saveDocument('students', updatedStudent.id, updatedStudent);
-      } catch (e) {
+      } catch (e: any) {
         console.error('Error saving updated student to Firebase:', e);
+        showToast(`Saved locally! (Firebase sync pending: ${e?.message || 'network'}) ⚠️`, true);
       }
     } else {
       // Add mode!
       const defaultDue = fields.finalPayableAmount !== undefined ? fields.finalPayableAmount : fields.fee;
       const freshStudent: Student = {
         ...fields,
-        id: Date.now(),
+        id: fields.id || Date.now(),
         paid: 0,
         due: defaultDue,
         joinDate: fields.joinDate || new Date().toLocaleDateString('en-IN')
@@ -807,8 +808,9 @@ export default function App() {
       showToast(`Registered lodger: "${fields.name}" in Room ${fields.room}! 🏠`);
       try {
         await saveDocument('students', freshStudent.id, freshStudent);
-      } catch (e) {
+      } catch (e: any) {
         console.error('Error saving fresh student to Firebase:', e);
+        showToast(`Saved locally! (Firebase sync pending: ${e?.message || 'network'}) ⚠️`, true);
       }
     }
   };
@@ -1244,8 +1246,8 @@ export default function App() {
         <StudentSelfRegistration
           students={students}
           settings={settings}
-          onAddStudent={(newLodger) => {
-            handleAddStudent(newLodger);
+          onAddStudent={async (newLodger) => {
+            await handleAddStudent(newLodger);
           }}
           onGoBack={() => {
             setCurView('website');
