@@ -7,7 +7,8 @@ import {
   deleteDoc, 
   onSnapshot, 
   writeBatch,
-  getDoc
+  getDoc,
+  getDocs
 } from 'firebase/firestore';
 import config from '../../firebase-applet-config.json';
 
@@ -27,7 +28,7 @@ export const db = config.firestoreDatabaseId
 export const firebaseEnabled = true;
 
 // Helper to sanitize data for Firestore (remove undefined and replace with empty string or null)
-function sanitizeForFirestore(data: any): any {
+export function sanitizeForFirestore(data: any): any {
   if (data === undefined) {
     return '';
   }
@@ -95,6 +96,45 @@ export async function deleteDocument(collectionName: string, id: string | number
   }
 }
 
+// Fetch all documents of a collection directly from Firestore
+export async function fetchCollectionDocuments<T>(collectionName: string): Promise<T[]> {
+  try {
+    const colRef = collection(db, collectionName);
+    const snapshot = await getDocs(colRef);
+    const list: T[] = [];
+    snapshot.forEach((d) => {
+      list.push(d.data() as T);
+    });
+    return list;
+  } catch (error: any) {
+    console.error(`Error fetching collection ${collectionName}:`, error);
+    return [];
+  }
+}
+
+// Batch save multiple documents to Firestore
+export async function batchSaveDocuments(collectionName: string, items: any[]): Promise<void> {
+  if (!items || items.length === 0) return;
+  try {
+    // Firestore batch limit is 500 operations
+    const CHUNK_SIZE = 400;
+    for (let i = 0; i < items.length; i += CHUNK_SIZE) {
+      const chunk = items.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      for (const item of chunk) {
+        if (item && item.id !== undefined) {
+          const docRef = doc(db, collectionName, item.id.toString());
+          batch.set(docRef, sanitizeForFirestore(item));
+        }
+      }
+      await batch.commit();
+    }
+  } catch (error: any) {
+    console.error(`Error in batchSaveDocuments for ${collectionName}:`, error);
+    throw error;
+  }
+}
+
 // Set up real-time listener for a collection, and seed it if it's empty
 export function setupCollectionSync<T>(
   collectionName: string,
@@ -122,7 +162,7 @@ export function setupCollectionSync<T>(
           const id = item.id;
           if (id) {
             const docRef = doc(colRef, id.toString());
-            batch.set(docRef, item);
+            batch.set(docRef, sanitizeForFirestore(item));
           }
         });
         await batch.commit();
@@ -175,7 +215,7 @@ export function setupSettingsSync(
   return onSnapshot(docRef, async (snapshot) => {
     if (!snapshot.exists()) {
       console.log('Seeding initial hostel settings...');
-      await setDoc(docRef, fallbackSettings);
+      await setDoc(docRef, sanitizeForFirestore(fallbackSettings));
     } else {
       onUpdate({ ...fallbackSettings, ...snapshot.data() });
     }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings, Save, Trash2, Download, Upload, HelpCircle, ShieldAlert, Copy, Check, FileText, Zap, Globe } from 'lucide-react';
+import { Settings, Save, Trash2, Download, Upload, HelpCircle, ShieldAlert, Copy, Check, FileText, Zap, Globe, RefreshCw } from 'lucide-react';
 import JSZip from 'jszip';
 import { HostelSettings, Student, Payment, Complaint, Visitor, PartnerWithdrawal, HostelExpense } from '../types';
 import { generateStandaloneHTML } from '../utils/standaloneHTML';
@@ -36,6 +36,10 @@ interface SettingsPanelProps {
   visitors: Visitor[];
   partnerWithdrawals: PartnerWithdrawal[];
   expenses: HostelExpense[];
+  onForceSyncCloud?: () => void;
+  onPushAllToCloud?: () => void;
+  isSyncingCloud?: boolean;
+  lastSyncTime?: string;
 }
 
 export default function SettingsPanel({
@@ -50,7 +54,11 @@ export default function SettingsPanel({
   complaints,
   visitors,
   partnerWithdrawals,
-  expenses
+  expenses,
+  onForceSyncCloud,
+  onPushAllToCloud,
+  isSyncingCloud = false,
+  lastSyncTime
 }: SettingsPanelProps) {
   const [form, setForm] = useState<HostelSettings>({ ...settings });
 
@@ -1164,6 +1172,92 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
             </button>
           </div>
         </form>
+      </div>
+
+      {/* ☁️ CLOUD SYNCHRONIZATION & MULTI-DEVICE LIVE SYNC */}
+      <div className="bg-gradient-to-br from-slate-900 to-slate-950 text-white rounded-2xl border border-emerald-550/30 border-emerald-500/30 p-6 shadow-lg space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <span className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
+              <Zap className="w-5 h-5 text-emerald-400" />
+            </span>
+            <div>
+              <h4 className="text-sm font-black text-white uppercase tracking-tight flex items-center gap-2">
+                Firebase Cloud Live Sync (डेस्कटॉप और मोबाइल लाइव सिंक)
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                  Realtime Active
+                </span>
+              </h4>
+              <p className="text-xs text-slate-400 mt-0.5 font-medium">
+                डेस्कटॉप और मोबाइल दोनों डिवाइस पर एक ही समय पर समान डेटा लाइव अपडेट रखने के लिए क्लाउड सिंक्रोनाइजेशन।
+              </p>
+            </div>
+          </div>
+          {lastSyncTime && (
+            <span className="text-[11px] font-mono text-slate-400 bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+              Last Synced: {lastSyncTime}
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          {onForceSyncCloud && (
+            <button
+              onClick={onForceSyncCloud}
+              disabled={isSyncingCloud}
+              className={`p-4 rounded-xl text-left border transition cursor-pointer flex items-center gap-3 ${
+                isSyncingCloud 
+                  ? 'bg-blue-600/30 border-blue-500 text-blue-200' 
+                  : 'bg-emerald-600/20 hover:bg-emerald-600/30 border-emerald-500/40 text-emerald-100 hover:border-emerald-400'
+              }`}
+            >
+              <div className="p-2 bg-emerald-500/30 rounded-lg text-emerald-300">
+                <RefreshCw className={`w-5 h-5 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+              </div>
+              <div>
+                <div className="font-bold text-xs sm:text-sm text-white">
+                  {isSyncingCloud ? 'Syncing with Cloud...' : '🔄 Force Sync Both Devices (अभी सिंक करें)'}
+                </div>
+                <div className="text-[11px] text-slate-300">
+                  क्लाउड से नया डेटा लोड करें और दोनों डिवाइस को बराबर करें
+                </div>
+              </div>
+            </button>
+          )}
+
+          {onPushAllToCloud && (
+            <button
+              onClick={onPushAllToCloud}
+              disabled={isSyncingCloud}
+              className="p-4 rounded-xl text-left border bg-indigo-600/20 hover:bg-indigo-600/30 border-indigo-500/40 text-indigo-100 hover:border-indigo-400 transition cursor-pointer flex items-center gap-3"
+            >
+              <div className="p-2 bg-indigo-500/30 rounded-lg text-indigo-300">
+                <Upload className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="font-bold text-xs sm:text-sm text-white">
+                  📤 Push All Local Records to Cloud
+                </div>
+                <div className="text-[11px] text-slate-300">
+                  लोकल का पूरा डेटा Firebase Cloud Database पर अपलोड करें
+                </div>
+              </div>
+            </button>
+          )}
+        </div>
+
+        <div className="text-[11px] text-slate-400 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50 space-y-1">
+          <p className="font-bold text-slate-300 flex items-center gap-1.5">
+            <Check className="w-3.5 h-3.5 text-emerald-400" />
+            Active Cloud Statistics:
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 font-mono text-[10px] text-slate-300">
+            <div>👨‍🎓 Students: <strong className="text-white">{students.length}</strong></div>
+            <div>🧾 Payments: <strong className="text-white">{payments.length}</strong></div>
+            <div>⚡ Expenses: <strong className="text-white">{expenses.length}</strong></div>
+            <div>👥 Visitors: <strong className="text-white">{visitors.length}</strong></div>
+          </div>
+        </div>
       </div>
 
       {/* Advanced Database maintenance */}

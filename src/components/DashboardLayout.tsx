@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   LayoutDashboard, Users, UserPlus, Receipt, AlertTriangle, 
   LogIn, Hammer, Eye, FileSpreadsheet, Settings, LogOut, 
-  Building2, ChevronRight, Menu, Bell, Globe, Sparkles, Zap, Utensils
+  Building2, ChevronRight, Menu, Bell, Globe, Sparkles, Zap, Utensils, RefreshCw, Cloud
 } from 'lucide-react';
 import { Student, Payment, Complaint, Visitor, HostelSettings, UserSession } from '../types';
 import Logo from './Logo';
@@ -22,6 +22,9 @@ interface DashboardLayoutProps {
   children: React.ReactNode;
   isFirebaseConnected?: boolean;
   isQuotaExceeded?: boolean;
+  onForceSyncCloud?: () => void;
+  isSyncingCloud?: boolean;
+  lastSyncTime?: string;
 }
 
 export default function DashboardLayout({
@@ -38,7 +41,10 @@ export default function DashboardLayout({
   onChangeTab,
   children,
   isFirebaseConnected = true,
-  isQuotaExceeded = false
+  isQuotaExceeded = false,
+  onForceSyncCloud,
+  isSyncingCloud = false,
+  lastSyncTime
 }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notifyOpen, setNotifyOpen] = useState(false);
@@ -264,6 +270,19 @@ export default function DashboardLayout({
 
         {/* Footer actions inside Sidebar */}
         <div className="p-4 border-t border-white/5 space-y-2">
+          {onForceSyncCloud && (
+            <button
+              onClick={onForceSyncCloud}
+              disabled={isSyncingCloud}
+              className="w-full py-2.5 px-4 text-left text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 rounded-xl font-bold flex items-center justify-between transition cursor-pointer border border-emerald-500/20"
+            >
+              <div className="flex items-center gap-3">
+                <RefreshCw className={`w-4 h-4 ${isSyncingCloud ? 'animate-spin text-emerald-400' : ''}`} />
+                <span>{isSyncingCloud ? 'Syncing Cloud...' : 'Sync Cloud Now'}</span>
+              </div>
+              <span className="text-[10px] px-1.5 py-0.5 bg-emerald-500/20 text-emerald-300 rounded font-mono">Live</span>
+            </button>
+          )}
           <button 
             onClick={onGoToWebsite}
             className="w-full py-2.5 px-4 text-left text-xs text-gray-400 hover:text-white hover:bg-white/5 rounded-xl font-bold flex items-center gap-3 transition cursor-pointer"
@@ -312,11 +331,29 @@ export default function DashboardLayout({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Realtime Cloud Sync Button (दोनों डिवाइस एक साथ सिंक करें) */}
+            {onForceSyncCloud && (
+              <button
+                onClick={onForceSyncCloud}
+                disabled={isSyncingCloud}
+                className={`px-3 py-2 sm:py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border ${
+                  isSyncingCloud
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse'
+                    : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200'
+                }`}
+                title={`Firebase Cloud Sync. Last synced: ${lastSyncTime || 'Live'}`}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-spin text-blue-600' : 'text-emerald-600'}`} />
+                <span className="hidden md:inline">{isSyncingCloud ? 'Syncing...' : 'Sync Cloud'}</span>
+                <span className="md:hidden">{isSyncingCloud ? '...' : 'Sync'}</span>
+              </button>
+            )}
+
             {/* Quick Record CTA buttons */}
             <button
               onClick={() => onOpenQuickModal('payment')}
-              className="px-4 py-2.5 bg-gradient-to-r from-[#FF6B35] to-[#e55a24] text-white rounded-xl text-xs font-bold shadow-md shadow-[#FF6B35]/20 hover:shadow-[#FF6B35]/40 hover:-translate-y-0.5 transition cursor-pointer hidden sm:flex items-center gap-1"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-[#FF6B35] to-[#e55a24] text-white rounded-xl text-xs font-bold shadow-md shadow-[#FF6B35]/20 hover:shadow-[#FF6B35]/40 hover:-translate-y-0.5 transition cursor-pointer hidden sm:flex items-center gap-1"
             >
               <Sparkles className="w-3.5 h-3.5" />
               Receive payment

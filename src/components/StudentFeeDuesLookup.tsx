@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, ArrowLeft, Copy, Check, ExternalLink, 
@@ -70,6 +70,16 @@ export default function StudentFeeDuesLookup({
   const [matchedStudent, setMatchedStudent] = useState<Student | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+
+  // Keep matchedStudent reactive to real-time updates and cloud sync
+  useEffect(() => {
+    if (matchedStudent) {
+      const fresh = students.find(s => s.id === matchedStudent.id);
+      if (fresh) {
+        setMatchedStudent(fresh);
+      }
+    }
+  }, [students]);
   
   // Student Portal tab
   // 'dashboard' | 'mess' | 'ledger' | 'complaints' | 'documents' | 'security'
@@ -250,14 +260,18 @@ export default function StudentFeeDuesLookup({
     onShowToast('पासवर्ड सफलतापूर्वक अपडेट किया गया! 🔑');
   };
 
-  // Fetch student payments specifically
+  // Fetch student payments specifically (with resilient matching for both ID and name)
   const studentPayments = matchedStudent 
-    ? payments.filter(p => p.studentId === matchedStudent.id)
+    ? payments.filter(p => {
+        if (p.studentId && Number(p.studentId) === Number(matchedStudent.id)) return true;
+        if (p.studentName && matchedStudent.name && p.studentName.trim().toLowerCase() === matchedStudent.name.trim().toLowerCase()) return true;
+        return false;
+      })
     : [];
 
   // Fetch student complaints specifically
   const studentComplaints = matchedStudent
-    ? complaints.filter(c => c.studentId === matchedStudent.id)
+    ? complaints.filter(c => Number(c.studentId) === Number(matchedStudent.id))
     : [];
 
   const isDocUploaded = (val?: string) => {
@@ -953,6 +967,58 @@ export default function StudentFeeDuesLookup({
                               <span className="font-mono text-gray-200 font-extrabold">{matchedStudent.emergencyMobile || matchedStudent.fatherMob || 'N/A'}</span>
                             </div>
                           </div>
+                        </div>
+
+                        {/* Recent Paid Invoices & Receipts Widget */}
+                        <div className="border border-slate-800 bg-[#1A1C1E] rounded-2xl p-5 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Receipt className="w-4 h-4 text-[#D4AF37]" />
+                              <h4 className="text-xs font-black uppercase text-gray-300 tracking-wider">
+                                Recent Fee Receipts ({studentPayments.length})
+                              </h4>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setPortalTab('ledger')}
+                              className="text-[10px] font-black text-[#D4AF37] hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              View All in Ledger <ChevronRight className="w-3 h-3" />
+                            </button>
+                          </div>
+
+                          {studentPayments.length === 0 ? (
+                            <div className="bg-slate-900/60 p-3.5 rounded-xl border border-slate-800/80 text-center">
+                              <p className="text-xs text-gray-400 font-medium">No payment receipt registered yet for this student.</p>
+                              <p className="text-[10px] text-gray-500 mt-1">Once warden records or approves payment, receipts appear here instantly.</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-2 max-h-[160px] overflow-y-auto pr-1">
+                              {studentPayments.slice(0, 3).map(p => (
+                                <div key={p.id} className="bg-slate-900/80 p-3 rounded-xl border border-slate-800 flex items-center justify-between gap-2">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-xs font-black text-[#D4AF37]">#{p.receipt}</span>
+                                      <span className="text-[10px] font-mono text-gray-400">{p.month}</span>
+                                    </div>
+                                    <span className="text-[10px] text-gray-400 block mt-0.5">{p.date} &bull; {p.mode}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-black text-emerald-400">₹{p.amount.toLocaleString('en-IN')}</span>
+                                    <button
+                                      type="button"
+                                      onClick={() => handlePrintVoucher(p)}
+                                      className="py-1 px-2.5 bg-slate-800 hover:bg-slate-700 text-[#D4AF37] hover:text-white rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer"
+                                      title="Print or View Receipt"
+                                    >
+                                      <Printer className="w-3 h-3" />
+                                      Print
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </div>
 

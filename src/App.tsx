@@ -9,7 +9,9 @@ import {
   setupCollectionSync, 
   setupSettingsSync, 
   saveDocument, 
-  deleteDocument 
+  deleteDocument,
+  fetchCollectionDocuments,
+  batchSaveDocuments
 } from './lib/firebase';
 
 // Core types & fallback startup data
@@ -176,6 +178,8 @@ export default function App() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
   const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState<string>('');
 
   // --- NAVIGATION STATE ROUTER ---
   // curView: 'website' | 'login' | 'dashboard' | 'student-registration' | 'student-dues-lookup'
@@ -558,6 +562,120 @@ export default function App() {
     setTimeout(() => {
       setToastMessage(null);
     }, 3500);
+  };
+
+  // --- CLOUD SYNC & RECONCILIATION ENGINE ---
+  const handleForceSyncCloud = async () => {
+    setIsSyncingCloud(true);
+    try {
+      showToast('Connecting to Firebase Cloud and syncing all records... ⏳');
+      const [fStudents, fPayments, fComplaints, fVisitors, fWithdrawals, fExpenses] = await Promise.all([
+        fetchCollectionDocuments<Student>('students'),
+        fetchCollectionDocuments<Payment>('payments'),
+        fetchCollectionDocuments<Complaint>('complaints'),
+        fetchCollectionDocuments<Visitor>('visitors'),
+        fetchCollectionDocuments<PartnerWithdrawal>('partnerWithdrawals'),
+        fetchCollectionDocuments<HostelExpense>('expenses'),
+      ]);
+
+      // 1. Reconcile students
+      let finalStudents = fStudents;
+      if (fStudents.length > 0) {
+        // Find any local student not in Firestore
+        const localOnly = students.filter(s => !fStudents.some(fs => fs.id === s.id));
+        if (localOnly.length > 0) {
+          await batchSaveDocuments('students', localOnly);
+          finalStudents = [...fStudents, ...localOnly];
+        }
+      } else if (students.length > 0) {
+        await batchSaveDocuments('students', students);
+        finalStudents = students;
+      }
+      setStudents(finalStudents);
+      safeStorage.setItem('ubh_students', JSON.stringify(finalStudents));
+
+      // 2. Reconcile payments
+      let finalPayments = fPayments;
+      if (fPayments.length > 0) {
+        const localOnlyPay = payments.filter(p => !fPayments.some(fp => fp.id === p.id));
+        if (localOnlyPay.length > 0) {
+          await batchSaveDocuments('payments', localOnlyPay);
+          finalPayments = [...fPayments, ...localOnlyPay];
+        }
+      } else if (payments.length > 0) {
+        await batchSaveDocuments('payments', payments);
+        finalPayments = payments;
+      }
+      setPayments(finalPayments);
+      safeStorage.setItem('ubh_payments', JSON.stringify(finalPayments));
+
+      // 3. Reconcile complaints
+      if (fComplaints.length > 0) {
+        setComplaints(fComplaints);
+        safeStorage.setItem('ubh_complaints', JSON.stringify(fComplaints));
+      } else if (complaints.length > 0) {
+        await batchSaveDocuments('complaints', complaints);
+      }
+
+      // 4. Reconcile visitors
+      if (fVisitors.length > 0) {
+        setVisitors(fVisitors);
+        safeStorage.setItem('ubh_visitors', JSON.stringify(fVisitors));
+      } else if (visitors.length > 0) {
+        await batchSaveDocuments('visitors', visitors);
+      }
+
+      // 5. Reconcile withdrawals
+      if (fWithdrawals.length > 0) {
+        setPartnerWithdrawals(fWithdrawals);
+        safeStorage.setItem('ubh_partner_withdrawals', JSON.stringify(fWithdrawals));
+      } else if (partnerWithdrawals.length > 0) {
+        await batchSaveDocuments('partnerWithdrawals', partnerWithdrawals);
+      }
+
+      // 6. Reconcile expenses
+      if (fExpenses.length > 0) {
+        setExpenses(fExpenses);
+        safeStorage.setItem('ubh_hostel_expenses', JSON.stringify(fExpenses));
+      } else if (expenses.length > 0) {
+        await batchSaveDocuments('expenses', expenses);
+      }
+
+      setIsFirebaseConnected(true);
+      setIsQuotaExceeded(false);
+      const nowStr = new Date().toLocaleTimeString('en-IN');
+      setLastSyncTime(nowStr);
+      showToast(`Cloud Sync Complete! (${finalStudents.length} Students & ${finalPayments.length} Payments live) 🔄☁️`);
+    } catch (err: any) {
+      console.error('Error during cloud force sync:', err);
+      showToast(`Sync alert: ${err?.message || 'Check network connection'}`, true);
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  };
+
+  const handlePushAllLocalToCloud = async () => {
+    setIsSyncingCloud(true);
+    try {
+      showToast('Uploading all local data to Firebase Cloud... ⏳');
+      await Promise.all([
+        batchSaveDocuments('students', students),
+        batchSaveDocuments('payments', payments),
+        batchSaveDocuments('complaints', complaints),
+        batchSaveDocuments('visitors', visitors),
+        batchSaveDocuments('partnerWithdrawals', partnerWithdrawals),
+        batchSaveDocuments('expenses', expenses),
+        saveDocument('settings', 'hostel_settings', settings)
+      ]);
+      const nowStr = new Date().toLocaleTimeString('en-IN');
+      setLastSyncTime(nowStr);
+      showToast('All local data uploaded to Firebase Cloud! Desktop & Mobile now share identical data. 🎉☁️');
+    } catch (err: any) {
+      console.error('Error uploading local data to cloud:', err);
+      showToast(`Upload failed: ${err?.message || 'Error'}`, true);
+    } finally {
+      setIsSyncingCloud(false);
+    }
   };
 
   // --- DATABASE PERSIST SHIELD ---
@@ -1343,6 +1461,9 @@ export default function App() {
           onOpenQuickModal={(type) => openQuickActionModal(type)}
           isFirebaseConnected={isFirebaseConnected}
           isQuotaExceeded={isQuotaExceeded}
+          onForceSyncCloud={handleForceSyncCloud}
+          isSyncingCloud={isSyncingCloud}
+          lastSyncTime={lastSyncTime}
         >
           {/* Dashboard router Tab rendering */}
           {curTab === 'dashboard' && (
@@ -1477,6 +1598,10 @@ export default function App() {
               visitors={visitors}
               partnerWithdrawals={partnerWithdrawals}
               expenses={expenses}
+              onForceSyncCloud={handleForceSyncCloud}
+              onPushAllToCloud={handlePushAllLocalToCloud}
+              isSyncingCloud={isSyncingCloud}
+              lastSyncTime={lastSyncTime}
             />
           )}
         </DashboardLayout>
