@@ -85,8 +85,12 @@ export interface Student {
   policeVerification?: string; // Base64 or 'Yes' / 'Pending'
   hostelForm?: string;
   agreementDoc?: string;
-  studentAadhaarDoc?: string;
+  studentAadhaarDoc?: string; // Kept for legacy compatibility / fallback
+  studentAadhaarDocFront?: string; // Student Aadhaar Card Front Side (आगे का भाग)
+  studentAadhaarDocBack?: string;  // Student Aadhaar Card Back Side (पीछे का भाग)
   fatherAadhaarDoc?: string;
+  fatherAadhaarDocFront?: string;
+  fatherAadhaarDocBack?: string;
 
   // Admission Amenities/Inventory check elements (सामान वितरण रिकॉर्ड)
   itemThali?: boolean;

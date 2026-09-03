@@ -1023,7 +1023,7 @@ export default function App() {
   };
 
   // Registering or Correcting payment collections
-  const handleRecordPayment = (fields: { studentId: number; amount: number; mode: any; month: string; note: string; paymentType?: 'Monthly' | 'Installment'; installmentNo?: string }) => {
+  const handleRecordPayment = (fields: { studentId: number; amount: number; mode: any; month: string; date?: string; note: string; paymentType?: 'Monthly' | 'Installment'; installmentNo?: string }) => {
     const matchingStudentObj = students.find(s => s.id === fields.studentId);
     if (!matchingStudentObj) {
       showToast('Lodger not mapped in dataset! ⚠️', true);
@@ -1063,7 +1063,7 @@ export default function App() {
         return s;
       });
 
-      // Update payment array, preserving internal ID, Receipt code, and Original creation date
+      // Update payment array, preserving internal ID and Receipt code, updating date if specified
       const updatedPayments = payments.map(p => {
         if (p.id === paymentToEdit.id) {
           return {
@@ -1074,6 +1074,7 @@ export default function App() {
             amount: fields.amount,
             mode: fields.mode,
             month: fields.month,
+            date: fields.date || p.date,
             note: fields.note,
             paymentType: fields.paymentType || 'Monthly',
             installmentNo: fields.installmentNo,
@@ -1101,7 +1102,7 @@ export default function App() {
       amount: fields.amount,
       mode: fields.mode,
       month: fields.month,
-      date: new Date().toLocaleDateString('en-IN'),
+      date: fields.date || new Date().toLocaleDateString('en-IN'),
       note: fields.note,
       paymentType: fields.paymentType || 'Monthly',
       installmentNo: fields.installmentNo,
@@ -1851,7 +1852,8 @@ export default function App() {
                             <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.policeVerification && selectedViewStudent.policeVerification.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.policeVerification && selectedViewStudent.policeVerification.startsWith('data:') ? 'green' : '#666'};">Police Verification: ${selectedViewStudent.policeVerification && selectedViewStudent.policeVerification.startsWith('data:') ? '✓ Uploaded' : '✗ Pending'}</div>
                             <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.hostelForm && selectedViewStudent.hostelForm.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.hostelForm && selectedViewStudent.hostelForm.startsWith('data:') ? 'green' : '#666'};">Hostel Registration: ${selectedViewStudent.hostelForm && selectedViewStudent.hostelForm.startsWith('data:') ? '✓ Uploaded' : '✗ Pending'}</div>
                             <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.agreementDoc && selectedViewStudent.agreementDoc.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.agreementDoc && selectedViewStudent.agreementDoc.startsWith('data:') ? 'green' : '#666'};">Lease Agreement: ${selectedViewStudent.agreementDoc && selectedViewStudent.agreementDoc.startsWith('data:') ? '✓ Uploaded' : '✗ Pending'}</div>
-                            <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.studentAadhaarDoc && selectedViewStudent.studentAadhaarDoc.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.studentAadhaarDoc && selectedViewStudent.studentAadhaarDoc.startsWith('data:') ? 'green' : '#666'};">Student Aadhaar Card: ${selectedViewStudent.studentAadhaarDoc && selectedViewStudent.studentAadhaarDoc.startsWith('data:') ? '✓ Uploaded' : '✗ Pending'}</div>
+                            <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${((selectedViewStudent.studentAadhaarDocFront && selectedViewStudent.studentAadhaarDocFront.startsWith('data:')) || (selectedViewStudent.studentAadhaarDoc && selectedViewStudent.studentAadhaarDoc.startsWith('data:'))) ? '#EEFBF7' : '#F9FAFB'}; color:${((selectedViewStudent.studentAadhaarDocFront && selectedViewStudent.studentAadhaarDocFront.startsWith('data:')) || (selectedViewStudent.studentAadhaarDoc && selectedViewStudent.studentAadhaarDoc.startsWith('data:'))) ? 'green' : '#666'};">Student Aadhaar (Front): ${((selectedViewStudent.studentAadhaarDocFront && selectedViewStudent.studentAadhaarDocFront.startsWith('data:')) || (selectedViewStudent.studentAadhaarDoc && selectedViewStudent.studentAadhaarDoc.startsWith('data:'))) ? '✓ Uploaded' : '✗ Pending'}</div>
+                            <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.studentAadhaarDocBack && selectedViewStudent.studentAadhaarDocBack.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.studentAadhaarDocBack && selectedViewStudent.studentAadhaarDocBack.startsWith('data:') ? 'green' : '#666'};">Student Aadhaar (Back): ${selectedViewStudent.studentAadhaarDocBack && selectedViewStudent.studentAadhaarDocBack.startsWith('data:') ? '✓ Uploaded' : '✗ Optional / Pending'}</div>
                             <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.fatherAadhaarDoc && selectedViewStudent.fatherAadhaarDoc.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.fatherAadhaarDoc && selectedViewStudent.fatherAadhaarDoc.startsWith('data:') ? 'green' : '#666'};">Parent Aadhaar Card: ${selectedViewStudent.fatherAadhaarDoc && selectedViewStudent.fatherAadhaarDoc.startsWith('data:') ? '✓ Uploaded' : '✗ Pending'}</div>
                           </div>
                         </div>
@@ -1870,10 +1872,11 @@ export default function App() {
                           { label: 'Police Verification Proof Document', key: 'policeVerification' },
                           { label: 'Hostel Registration Form', key: 'hostelForm' },
                           { label: 'Rent Lease agreement Contract', key: 'agreementDoc' },
-                          { label: 'Student Aadhaar Identification Card', key: 'studentAadhaarDoc' },
+                          { label: 'Student Aadhaar Card (Front Side)', key: 'studentAadhaarDocFront', fallbackKey: 'studentAadhaarDoc' },
+                          { label: 'Student Aadhaar Card (Back Side)', key: 'studentAadhaarDocBack' },
                           { label: 'Father / Parent Identity Aadhaar Card', key: 'fatherAadhaarDoc' },
                         ].map(doc => {
-                          const rawDoc = (selectedViewStudent as any)[doc.key];
+                          const rawDoc = (selectedViewStudent as any)[doc.key] || (doc.fallbackKey ? (selectedViewStudent as any)[doc.fallbackKey] : undefined);
                           if (rawDoc && rawDoc.startsWith('data:')) {
                             return `
                               <div class="annexure">
@@ -2196,10 +2199,11 @@ export default function App() {
                     { label: 'Police Verification Form', key: 'policeVerification', file: 'police_verification' },
                     { label: 'Hostel Registration Form', key: 'hostelForm', file: 'hostel_form' },
                     { label: 'Agreement Contract Doc', key: 'agreementDoc', file: 'agreement_contract' },
-                    { label: 'Student Aadhaar Card (UIDAI)', key: 'studentAadhaarDoc', file: 'student_aadhaar' },
+                    { label: 'Student Aadhaar (Front Side)', key: 'studentAadhaarDocFront', fallbackKey: 'studentAadhaarDoc', file: 'student_aadhaar_front' },
+                    { label: 'Student Aadhaar (Back Side)', key: 'studentAadhaarDocBack', file: 'student_aadhaar_back' },
                     { label: 'Father / Parent Aadhaar Card', key: 'fatherAadhaarDoc', file: 'father_aadhaar' },
                   ].map(doc => {
-                    const rawDoc = (selectedViewStudent as any)[doc.key];
+                    const rawDoc = (selectedViewStudent as any)[doc.key] || (doc.fallbackKey ? (selectedViewStudent as any)[doc.fallbackKey] : undefined);
                     const hasDoc = rawDoc && rawDoc.startsWith('data:');
                     return (
                       <div key={doc.key} className="p-3 bg-gray-50/70 border border-gray-150 rounded-xl flex items-center justify-between gap-3">

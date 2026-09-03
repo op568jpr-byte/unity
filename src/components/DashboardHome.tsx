@@ -43,6 +43,13 @@ export default function DashboardHome({
   const totalCapacity = typeof settings.totalBeds === 'number' && settings.totalBeds > 0 ? settings.totalBeds : 100;
   const [capacityInput, setCapacityInput] = useState<number>(totalCapacity);
 
+  // Keep capacityInput in sync if settings update from cloud
+  React.useEffect(() => {
+    if (typeof settings.totalBeds === 'number' && settings.totalBeds > 0) {
+      setCapacityInput(settings.totalBeds);
+    }
+  }, [settings.totalBeds]);
+
   const registrationLink = getLiveAppUrl() + '?mode=student-form';
 
   const handleCopyLink = () => {

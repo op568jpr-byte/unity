@@ -410,10 +410,10 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
     }
     const fullUpdatedSettings: HostelSettings = {
       ...form,
-      totalBeds: Number(form.totalBeds) > 0 ? Number(form.totalBeds) : 100,
-      doubleRoomsCount: Number(form.doubleRoomsCount) > 0 ? Number(form.doubleRoomsCount) : 25,
-      tripleRoomsCount: Number(form.tripleRoomsCount) > 0 ? Number(form.tripleRoomsCount) : 15,
-      totalRoomsCount: Number(form.totalRoomsCount) > 0 ? Number(form.totalRoomsCount) : 45,
+      totalBeds: Number(form.totalBeds) > 0 ? Number(form.totalBeds) : (settings.totalBeds || 100),
+      doubleRoomsCount: Number(form.doubleRoomsCount) > 0 ? Number(form.doubleRoomsCount) : (settings.doubleRoomsCount || 25),
+      tripleRoomsCount: Number(form.tripleRoomsCount) > 0 ? Number(form.tripleRoomsCount) : (settings.tripleRoomsCount || 15),
+      totalRoomsCount: Number(form.totalRoomsCount) > 0 ? Number(form.totalRoomsCount) : (settings.totalRoomsCount || 45),
       masterUsername: masterUser,
       masterPassword: masterPass,
       staffUsername: staffUser,
@@ -627,7 +627,7 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
                   <div className="flex items-center gap-2">
                     <button 
                       type="button" 
-                      onClick={() => handleCapacityChange('totalBeds', Math.max(1, (Number(form.totalBeds) || 100) - 1))}
+                      onClick={() => handleCapacityChange('totalBeds', Math.max(1, (Number(form.totalBeds) || Number(settings.totalBeds) || 100) - 1))}
                       className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
                     >
                       -
@@ -635,7 +635,7 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
                     <input
                       type="number"
                       min={1}
-                      value={form.totalBeds !== undefined && form.totalBeds !== null ? form.totalBeds : 100}
+                      value={form.totalBeds !== undefined && form.totalBeds !== null ? form.totalBeds : (settings.totalBeds || 100)}
                       onChange={e => {
                         const val = parseInt(e.target.value);
                         handleCapacityChange('totalBeds', isNaN(val) ? 0 : val);
@@ -644,7 +644,7 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
                     />
                     <button 
                       type="button" 
-                      onClick={() => handleCapacityChange('totalBeds', (Number(form.totalBeds) || 100) + 1)}
+                      onClick={() => handleCapacityChange('totalBeds', (Number(form.totalBeds) || Number(settings.totalBeds) || 100) + 1)}
                       className="w-8 h-8 rounded-lg bg-white border font-bold text-slate-800 hover:bg-slate-100 flex items-center justify-center cursor-pointer hover:border-slate-400 shrink-0"
                     >
                       +
@@ -757,10 +757,10 @@ Generated Date: ${new Date().toLocaleString('en-IN')}
                   onClick={() => {
                     const fullUpdatedSettings: HostelSettings = {
                       ...form,
-                      totalBeds: Number(form.totalBeds) > 0 ? Number(form.totalBeds) : 100,
-                      doubleRoomsCount: Number(form.doubleRoomsCount) > 0 ? Number(form.doubleRoomsCount) : 25,
-                      tripleRoomsCount: Number(form.tripleRoomsCount) > 0 ? Number(form.tripleRoomsCount) : 15,
-                      totalRoomsCount: Number(form.totalRoomsCount) > 0 ? Number(form.totalRoomsCount) : 45,
+                      totalBeds: Number(form.totalBeds) > 0 ? Number(form.totalBeds) : (settings.totalBeds || 100),
+                      doubleRoomsCount: Number(form.doubleRoomsCount) > 0 ? Number(form.doubleRoomsCount) : (settings.doubleRoomsCount || 25),
+                      tripleRoomsCount: Number(form.tripleRoomsCount) > 0 ? Number(form.tripleRoomsCount) : (settings.tripleRoomsCount || 15),
+                      totalRoomsCount: Number(form.totalRoomsCount) > 0 ? Number(form.totalRoomsCount) : (settings.totalRoomsCount || 45),
                       masterUsername: masterUser,
                       masterPassword: masterPass,
                       staffUsername: staffUser,

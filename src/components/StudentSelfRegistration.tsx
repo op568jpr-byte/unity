@@ -187,12 +187,24 @@ export default function StudentSelfRegistration({
 
       try {
         const compressedBase64 = await compressImageFile(file, 800, 800, 0.65);
-        setForm(prev => ({ ...prev, [fieldName]: compressedBase64 }));
+        setForm((prev: any) => {
+          const updates: any = { [fieldName]: compressedBase64 };
+          if (fieldName === 'studentAadhaarDocFront') {
+            updates.studentAadhaarDoc = compressedBase64;
+          }
+          return { ...prev, ...updates };
+        });
         onShowToast("Document optimized & attached! 📂✅");
       } catch (err) {
         try {
           const fallbackBase64 = await compressImageFile(file, 600, 600, 0.5);
-          setForm(prev => ({ ...prev, [fieldName]: fallbackBase64 }));
+          setForm((prev: any) => {
+            const updates: any = { [fieldName]: fallbackBase64 };
+            if (fieldName === 'studentAadhaarDocFront') {
+              updates.studentAadhaarDoc = fallbackBase64;
+            }
+            return { ...prev, ...updates };
+          });
           onShowToast("Document compressed & attached! 📂✅");
         } catch (e) {
           console.error('Error compressing doc:', e);
@@ -203,7 +215,13 @@ export default function StudentSelfRegistration({
   };
 
   const removeDoc = (fieldName: string) => {
-    setForm(prev => ({ ...prev, [fieldName]: '' }));
+    setForm((prev: any) => {
+      const updates: any = { [fieldName]: '' };
+      if (fieldName === 'studentAadhaarDocFront') {
+        updates.studentAadhaarDoc = '';
+      }
+      return { ...prev, ...updates };
+    });
     onShowToast("Document file removed.");
   };
 
@@ -283,6 +301,8 @@ export default function StudentSelfRegistration({
     hostelForm: '', // Pending or Base64
     agreementDoc: '', // Pending or Base64
     studentAadhaarDoc: '', // Pending or Base64
+    studentAadhaarDocFront: '', // Pending or Base64 (Front side)
+    studentAadhaarDocBack: '', // Pending or Base64 (Back side)
     fatherAadhaarDoc: '', // Pending or Base64
   });
 
@@ -336,11 +356,13 @@ export default function StudentSelfRegistration({
       }
     }
     if (step === 5) {
-      if (!form.studentAadhaarDoc || form.studentAadhaarDoc === 'Pending Submission') {
-        onShowToast('Student Aadhaar Card photo upload is mandatory! 💳⚠️', true);
+      const hasFrontAadhaar = (form.studentAadhaarDocFront && form.studentAadhaarDocFront !== 'Pending Submission') || 
+                              (form.studentAadhaarDoc && form.studentAadhaarDoc !== 'Pending Submission');
+      if (!hasFrontAadhaar) {
+        onShowToast('Student Aadhaar Card Front Side (आगे का भाग) photo upload is mandatory! 💳⚠️', true);
         return;
       }
-      // Father's Aadhaar is optional
+      // Father's Aadhaar and Aadhaar Back side are optional
     }
     setStep(prev => Math.min(prev + 1, 6));
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -455,12 +477,13 @@ Warden verification pending.
         { label: 'Police Verification Receipt', key: 'policeVerification' },
         { label: 'Hostel Admission Printed Form', key: 'hostelForm' },
         { label: 'Agreement Contract Slip', key: 'agreementDoc' },
-        { label: 'Student Aadhaar Card (Front/Back)', key: 'studentAadhaarDoc' },
+        { label: 'Student Aadhaar Card (Front Side / आगे का भाग)', key: 'studentAadhaarDocFront', fallbackKey: 'studentAadhaarDoc' },
+        { label: 'Student Aadhaar Card (Back Side / पीछे का भाग)', key: 'studentAadhaarDocBack' },
         { label: 'Father / Guardian Aadhaar Card', key: 'fatherAadhaarDoc' }
       ];
 
       docList.forEach(doc => {
-        const docSrc = data[doc.key];
+        const docSrc = data[doc.key] || (doc.fallbackKey ? data[doc.fallbackKey] : null);
         if (docSrc && docSrc !== 'Pending Submission' && docSrc.startsWith('data:')) {
           documentsHtml += `
             <div class="document-card page-break">
@@ -935,7 +958,9 @@ Warden verification pending.
         policeVerification: form.policeVerification || 'Pending Submission',
         hostelForm: form.hostelForm || 'Pending Submission',
         agreementDoc: form.agreementDoc || 'Pending Submission',
-        studentAadhaarDoc: form.studentAadhaarDoc || 'Pending Submission',
+        studentAadhaarDoc: form.studentAadhaarDocFront || form.studentAadhaarDoc || 'Pending Submission',
+        studentAadhaarDocFront: form.studentAadhaarDocFront || form.studentAadhaarDoc || 'Pending Submission',
+        studentAadhaarDocBack: form.studentAadhaarDocBack || 'Pending Submission',
         fatherAadhaarDoc: form.fatherAadhaarDoc || 'Pending Submission'
       };
 
@@ -1096,15 +1121,16 @@ Warden verification pending.
         {/* Digital Document checklist */}
         <div className="space-y-1.5">
           <span className="text-gray-400 font-bold block text-[9px] uppercase tracking-wider">Verification documents uploaded profile status:</span>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 text-[10px] text-center font-bold">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2 text-[10px] text-center font-bold">
             {[
               { label: 'Police Verification', key: 'policeVerification', file: 'police_verification' },
               { label: 'Hostel Form', key: 'hostelForm', file: 'hostel_form' },
               { label: 'Agreement Slip', key: 'agreementDoc', file: 'agreement_contract' },
-              { label: 'Student Aadhaar', key: 'studentAadhaarDoc', file: 'student_aadhaar' },
+              { label: 'Aadhaar (Front)', key: 'studentAadhaarDocFront', fallbackKey: 'studentAadhaarDoc', file: 'student_aadhaar_front' },
+              { label: 'Aadhaar (Back)', key: 'studentAadhaarDocBack', file: 'student_aadhaar_back' },
               { label: 'Parent Aadhaar', key: 'fatherAadhaarDoc', file: 'father_aadhaar' }
             ].map(doc => {
-              const rawDoc = (data as any)[doc.key];
+              const rawDoc = (data as any)[doc.key] || (doc.fallbackKey ? (data as any)[doc.fallbackKey] : null);
               const hasDoc = rawDoc && rawDoc !== 'Pending Submission' && rawDoc.startsWith('data:');
               return (
                 <div key={doc.key} className={`p-2 rounded-lg border flex flex-col justify-between min-h-[75px] ${hasDoc ? 'bg-emerald-50/60 border-emerald-250 text-emerald-800' : 'bg-gray-50 border-gray-150 text-gray-400'}`}>
@@ -2118,33 +2144,35 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                     />
                   </div>
 
-                  {/* Document 4: Student Aadhaar Card */}
+                  {/* Document 4A: Student Aadhaar Card Front Side */}
                   <div className="border border-gray-150 rounded-2xl p-4 bg-gray-50 flex flex-col justify-between gap-3 text-xs">
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-extrabold text-gray-700 text-xs">4. Student Aadhaar Card (स्वयं का आधार) *</span>
-                        <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.studentAadhaarDoc ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-805'}`}>
-                          {form.studentAadhaarDoc ? 'Uploaded' : 'Pending'}
+                        <span className="font-extrabold text-gray-700 text-xs">4A. Student Aadhaar – FRONT SIDE (आगे का भाग) *</span>
+                        <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${(form.studentAadhaarDocFront || form.studentAadhaarDoc) ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-805'}`}>
+                          {(form.studentAadhaarDocFront || form.studentAadhaarDoc) ? 'Uploaded' : 'Pending'}
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-400 leading-normal">Mandatory Government identity photo verification.</p>
+                      <p className="text-[10px] text-gray-400 leading-normal">Front side containing photo, name, DOB and Aadhaar number.</p>
                     </div>
-                    {form.studentAadhaarDoc && (
+                    {(form.studentAadhaarDocFront || form.studentAadhaarDoc) && (
                       <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200 mb-2">
                         <div className="w-10 h-10 rounded overflow-hidden border cursor-pointer hover:opacity-85" onClick={() => {
-                          setDocViewerData(form.studentAadhaarDoc);
-                          setDocViewerTitle(`${form.name || 'Student'}'s Student Aadhaar Card`);
+                          const docData = form.studentAadhaarDocFront || form.studentAadhaarDoc;
+                          setDocViewerData(docData);
+                          setDocViewerTitle(`${form.name || 'Student'}'s Aadhaar (Front Side)`);
                           setDocViewerOpen(true);
                         }}>
-                          <img src={form.studentAadhaarDoc} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          <img src={form.studentAadhaarDocFront || form.studentAadhaarDoc} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         </div>
-                        <span className="text-[9px] font-mono text-gray-400 flex-1 truncate">student_aadhaar_card.jpg</span>
+                        <span className="text-[9px] font-mono text-gray-400 flex-1 truncate">aadhaar_front_side.jpg</span>
                         <div className="flex gap-2 text-[10px] font-bold">
                           <button
                             type="button"
                             onClick={() => {
-                              setDocViewerData(form.studentAadhaarDoc);
-                              setDocViewerTitle(`${form.name || 'Student'}'s Student Aadhaar Card`);
+                              const docData = form.studentAadhaarDocFront || form.studentAadhaarDoc;
+                              setDocViewerData(docData);
+                              setDocViewerTitle(`${form.name || 'Student'}'s Aadhaar (Front Side)`);
                               setDocViewerOpen(true);
                             }}
                             className="text-[#FF6B35] hover:underline cursor-pointer"
@@ -2154,9 +2182,10 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              const ext = (form.studentAadhaarDoc || '').split(';')[0].split('/')[1] || 'png';
-                              const filename = `${(form.name || 'document').replace(/\s+/g, '_')}_student_aadhaar.${ext}`;
-                              downloadBase64File(form.studentAadhaarDoc || '', filename);
+                              const docData = form.studentAadhaarDocFront || form.studentAadhaarDoc;
+                              const ext = (docData || '').split(';')[0].split('/')[1] || 'png';
+                              const filename = `${(form.name || 'document').replace(/\s+/g, '_')}_aadhaar_front.${ext}`;
+                              downloadBase64File(docData || '', filename);
                             }}
                             className="text-emerald-600 hover:underline cursor-pointer"
                           >
@@ -2165,20 +2194,85 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                           <button
                             type="button"
                             onClick={() => {
-                              printBase64File(form.studentAadhaarDoc, `${form.name || 'Student'}'s Student Aadhaar Card`);
+                              printBase64File(form.studentAadhaarDocFront || form.studentAadhaarDoc, `${form.name || 'Student'}'s Aadhaar Front Side`);
                             }}
                             className="text-sky-600 hover:underline cursor-pointer"
                           >
                             Print
                           </button>
-                          <button type="button" onClick={() => removeDoc('studentAadhaarDoc')} className="text-red-500 hover:underline cursor-pointer">Remove</button>
+                          <button type="button" onClick={() => removeDoc('studentAadhaarDocFront')} className="text-red-500 hover:underline cursor-pointer">Remove</button>
                         </div>
                       </div>
                     )}
                     <input 
                       type="file" 
                       accept="image/*" 
-                      onChange={e => handleDocUpload('studentAadhaarDoc', e.target.files?.[0] || null)}
+                      onChange={e => handleDocUpload('studentAadhaarDocFront', e.target.files?.[0] || null)}
+                      className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer w-full" 
+                    />
+                  </div>
+
+                  {/* Document 4B: Student Aadhaar Card Back Side */}
+                  <div className="border border-gray-150 rounded-2xl p-4 bg-gray-50 flex flex-col justify-between gap-3 text-xs">
+                    <div>
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="font-extrabold text-gray-700 text-xs">4B. Student Aadhaar – BACK SIDE (पीछे का भाग)</span>
+                        <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.studentAadhaarDocBack ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'}`}>
+                          {form.studentAadhaarDocBack ? 'Uploaded' : 'Optional'}
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-gray-400 leading-normal">Back side containing permanent address details & QR code.</p>
+                    </div>
+                    {form.studentAadhaarDocBack && (
+                      <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200 mb-2">
+                        <div className="w-10 h-10 rounded overflow-hidden border cursor-pointer hover:opacity-85" onClick={() => {
+                          setDocViewerData(form.studentAadhaarDocBack);
+                          setDocViewerTitle(`${form.name || 'Student'}'s Aadhaar (Back Side)`);
+                          setDocViewerOpen(true);
+                        }}>
+                          <img src={form.studentAadhaarDocBack} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        </div>
+                        <span className="text-[9px] font-mono text-gray-400 flex-1 truncate">aadhaar_back_side.jpg</span>
+                        <div className="flex gap-2 text-[10px] font-bold">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDocViewerData(form.studentAadhaarDocBack);
+                              setDocViewerTitle(`${form.name || 'Student'}'s Aadhaar (Back Side)`);
+                              setDocViewerOpen(true);
+                            }}
+                            className="text-[#FF6B35] hover:underline cursor-pointer"
+                          >
+                            View
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const ext = (form.studentAadhaarDocBack || '').split(';')[0].split('/')[1] || 'png';
+                              const filename = `${(form.name || 'document').replace(/\s+/g, '_')}_aadhaar_back.${ext}`;
+                              downloadBase64File(form.studentAadhaarDocBack || '', filename);
+                            }}
+                            className="text-emerald-600 hover:underline cursor-pointer"
+                          >
+                            DL
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              printBase64File(form.studentAadhaarDocBack, `${form.name || 'Student'}'s Aadhaar Back Side`);
+                            }}
+                            className="text-sky-600 hover:underline cursor-pointer"
+                          >
+                            Print
+                          </button>
+                          <button type="button" onClick={() => removeDoc('studentAadhaarDocBack')} className="text-red-500 hover:underline cursor-pointer">Remove</button>
+                        </div>
+                      </div>
+                    )}
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={e => handleDocUpload('studentAadhaarDocBack', e.target.files?.[0] || null)}
                       className="text-[10px] text-gray-500 file:border-0 file:bg-gray-200 file:px-2.5 file:py-1 file:rounded-lg file:text-xs file:font-semibold cursor-pointer w-full" 
                     />
                   </div>

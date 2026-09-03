@@ -1,15 +1,63 @@
 import React, { useState, useEffect } from 'react';
 import { PaymentMode, Student, Payment } from '../types';
-import { Search } from 'lucide-react';
+import { Search, Calendar } from 'lucide-react';
 
 interface PaymentFormProps {
   students: Student[];
-  onSubmit: (data: { studentId: number; amount: number; mode: PaymentMode; month: string; note: string; paymentType: 'Monthly' | 'Installment'; installmentNo?: string }) => void;
+  onSubmit: (data: { 
+    studentId: number; 
+    amount: number; 
+    mode: PaymentMode; 
+    month: string; 
+    date?: string;
+    note: string; 
+    paymentType: 'Monthly' | 'Installment'; 
+    installmentNo?: string 
+  }) => void;
   onCancel: () => void;
   onShowToast?: (msg: string, isError?: boolean) => void;
   paymentToEdit?: Payment;
   upiId?: string;
 }
+
+const getTodayDateYYYYMMDD = () => {
+  const d = new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const parseDateToYYYYMMDD = (dateStr?: string) => {
+  if (!dateStr) return getTodayDateYYYYMMDD();
+  if (dateStr.includes('/')) {
+    const parts = dateStr.split('/');
+    if (parts.length === 3) {
+      const dd = parts[0].padStart(2, '0');
+      const mm = parts[1].padStart(2, '0');
+      const yyyy = parts[2];
+      return `${yyyy}-${mm}-${dd}`;
+    }
+  }
+  if (dateStr.includes('-') && dateStr.split('-')[0].length === 4) {
+    return dateStr;
+  }
+  return getTodayDateYYYYMMDD();
+};
+
+const formatYYYYMMDDToDDMMYYYY = (dateStr: string) => {
+  if (!dateStr) return new Date().toLocaleDateString('en-IN');
+  if (dateStr.includes('-')) {
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const yyyy = parts[0];
+      const mm = parts[1].padStart(2, '0');
+      const dd = parts[2].padStart(2, '0');
+      return `${dd}/${mm}/${yyyy}`;
+    }
+  }
+  return dateStr;
+};
 
 export default function PaymentForm({ students, onSubmit, onCancel, onShowToast, paymentToEdit, upiId }: PaymentFormProps) {
   // Load settings for dynamic UPI configuration
@@ -37,6 +85,7 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
   const [amount, setAmount] = useState<number>(0);
   const [mode, setMode] = useState<PaymentMode>('UPI');
   const [month, setMonth] = useState<string>('');
+  const [paymentDate, setPaymentDate] = useState<string>(getTodayDateYYYYMMDD());
   const [note, setNote] = useState<string>('');
   const [paymentScheme, setPaymentScheme] = useState<string>('Monthly');
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -49,6 +98,7 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
       setAmount(paymentToEdit.amount);
       setMode(paymentToEdit.mode);
       setNote(paymentToEdit.note || '');
+      setPaymentDate(parseDateToYYYYMMDD(paymentToEdit.date));
       
       const scheme = paymentToEdit.paymentType === 'Installment' 
         ? (paymentToEdit.installmentNo || '1st Installment') 
@@ -66,6 +116,7 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
       const d = new Date();
       const mm = String(d.getMonth() + 1).padStart(2, '0');
       setMonth(`${d.getFullYear()}-${mm}`);
+      setPaymentDate(getTodayDateYYYYMMDD());
     }
   }, [paymentToEdit]);
 
@@ -89,12 +140,14 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
 
     const calculatedPaymentType: 'Monthly' | 'Installment' = paymentScheme === 'Monthly' ? 'Monthly' : 'Installment';
     const calculatedInstallmentNo = paymentScheme === 'Monthly' ? undefined : paymentScheme;
+    const formattedPaymentDate = formatYYYYMMDDToDDMMYYYY(paymentDate);
 
     onSubmit({ 
       studentId, 
       amount, 
       mode, 
       month: calculatedPaymentType === 'Monthly' ? month : 'N/A', 
+      date: formattedPaymentDate,
       note, 
       paymentType: calculatedPaymentType,
       installmentNo: calculatedInstallmentNo
@@ -201,7 +254,7 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
         </select>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
         <div>
           <label className="block text-xs font-semibold text-gray-500 mb-1.5">Collection Amount (₹) *</label>
           <input
@@ -209,7 +262,7 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
             required
             value={amount}
             onChange={e => setAmount(parseInt(e.target.value) || 0)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white font-bold text-emerald-600"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white font-bold text-emerald-600 text-sm"
           />
         </div>
         <div>
@@ -217,12 +270,52 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
           <select
             value={mode}
             onChange={e => setMode(e.target.value as PaymentMode)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none bg-white cursor-pointer"
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none bg-white cursor-pointer text-xs sm:text-sm font-semibold"
           >
             <option value="UPI">UPI Transfer (PhonePe/GPay)</option>
             <option value="Cash">Cash Handover</option>
             <option value="Bank Transfer">Direct Bank NEFT/IMPS</option>
           </select>
+        </div>
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <label className="block text-xs font-bold text-gray-700 flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5 text-[#FF6B35]" /> Payment Date *
+            </label>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setPaymentDate(getTodayDateYYYYMMDD())}
+                className="text-[9px] text-[#FF6B35] hover:underline font-bold cursor-pointer"
+                title="Set to today"
+              >
+                Today
+              </button>
+              <span className="text-gray-300 text-[9px]">|</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const d = new Date();
+                  d.setDate(d.getDate() - 1);
+                  const yyyy = d.getFullYear();
+                  const mm = String(d.getMonth() + 1).padStart(2, '0');
+                  const dd = String(d.getDate()).padStart(2, '0');
+                  setPaymentDate(`${yyyy}-${mm}-${dd}`);
+                }}
+                className="text-[9px] text-gray-500 hover:text-gray-800 font-bold cursor-pointer"
+                title="Set to yesterday"
+              >
+                Yesterday
+              </button>
+            </div>
+          </div>
+          <input
+            type="date"
+            required
+            value={paymentDate}
+            onChange={e => setPaymentDate(e.target.value)}
+            className="w-full px-3.5 py-3 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white font-bold font-mono text-xs sm:text-sm text-gray-800"
+          />
         </div>
       </div>
 
