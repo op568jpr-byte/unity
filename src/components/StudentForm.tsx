@@ -28,6 +28,29 @@ const convertYYYYMMDDToDDMMYYYY = (dateStr: string) => {
   return dateStr;
 };
 
+const extractYearFromDate = (dateStr: string): string => {
+  if (!dateStr) return new Date().getFullYear().toString();
+  // if formatted as DD/MM/YYYY
+  const slashParts = dateStr.split('/');
+  if (slashParts.length === 3) {
+    return slashParts[2];
+  }
+  // if formatted as YYYY-MM-DD
+  const dashParts = dateStr.split('-');
+  if (dashParts.length === 3) {
+    return dashParts[0];
+  }
+  // If it's already just a 4 digit year
+  if (/^\d{4}$/.test(dateStr.trim())) {
+    return dateStr.trim();
+  }
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getFullYear())) {
+    return parsed.getFullYear().toString();
+  }
+  return new Date().getFullYear().toString();
+};
+
 interface StudentFormProps {
   onSubmit: (student: Omit<Student, 'id' | 'paid' | 'due' | 'joinDate'> & { id?: number; paid?: number; due?: number; joinDate?: string }) => void;
   onCancel: () => void;
@@ -470,7 +493,14 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
         if (onShowToast) onShowToast(msg, true);
         return;
       }
-      // Father's Aadhaar and Aadhaar Back side are optional
+      const hasBackAadhaar = form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending' && form.studentAadhaarDocBack !== 'Pending Submission' && form.studentAadhaarDocBack !== 'Not Provided';
+      if (!hasBackAadhaar) {
+        const msg = 'Student Aadhaar Card Back Side (पीछे का भाग) upload or status selection is mandatory! 💳⚠️';
+        setErrorMsg(msg);
+        if (onShowToast) onShowToast(msg, true);
+        return;
+      }
+      // Father's Aadhaar is optional
     }
     setStep(prev => Math.min(prev + 1, 6));
   };
@@ -525,6 +555,25 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
 
     if (form.yearlyTotalFee === undefined || form.yearlyTotalFee === null || form.yearlyTotalFee === '') {
       const msg = 'Please enter the Total Stay / Yearly Contract Fee! (Step 5) ⚠️';
+      setErrorMsg(msg);
+      setStep(5);
+      if (onShowToast) onShowToast(msg, true);
+      return;
+    }
+
+    const hasFrontAadhaar = (form.studentAadhaarDocFront && form.studentAadhaarDocFront !== 'Pending' && form.studentAadhaarDocFront !== 'Pending Submission') ||
+                            (form.studentAadhaarDoc && form.studentAadhaarDoc !== 'Pending' && form.studentAadhaarDoc !== 'Pending Submission');
+    if (!hasFrontAadhaar) {
+      const msg = 'Student Aadhaar Card Front Side (आगे का भाग) upload or status selection is mandatory! (Step 5) 💳⚠️';
+      setErrorMsg(msg);
+      setStep(5);
+      if (onShowToast) onShowToast(msg, true);
+      return;
+    }
+
+    const hasBackAadhaar = form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending' && form.studentAadhaarDocBack !== 'Pending Submission' && form.studentAadhaarDocBack !== 'Not Provided';
+    if (!hasBackAadhaar) {
+      const msg = 'Student Aadhaar Card Back Side (पीछे का भाग) upload or status selection is mandatory! (Step 5) 💳⚠️';
       setErrorMsg(msg);
       setStep(5);
       if (onShowToast) onShowToast(msg, true);
@@ -676,13 +725,25 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-extrabold text-[#FF6B35] mb-1">Date of Admission (प्रवेश तिथि) *</label>
-                <input
-                  type="date"
-                  value={convertDDMMYYYYToYYYYMMDD(form.joinDate)}
-                  onChange={e => setForm({ ...form, joinDate: convertYYYYMMDDToDDMMYYYY(e.target.value) })}
-                  className="w-full px-3.5 py-2.5 border border-[#FF6B35] rounded-xl focus:border-[#FF6B35] outline-none transition bg-white font-bold text-gray-800"
-                />
+                <label className="block text-[10px] font-extrabold text-[#FF6B35] mb-1">Year of Admission (प्रवेश वर्ष) *</label>
+                <select
+                  value={extractYearFromDate(form.joinDate)}
+                  onChange={e => {
+                    const chosenYear = e.target.value;
+                    // Retain current day/month or default to 01/07 (academic start) of that year
+                    const parts = form.joinDate ? form.joinDate.split('/') : [];
+                    const day = parts.length === 3 ? parts[0] : '01';
+                    const month = parts.length === 3 ? parts[1] : '07';
+                    setForm({ ...form, joinDate: `${day}/${month}/${chosenYear}` });
+                  }}
+                  className="w-full px-3.5 py-2.5 border border-[#FF6B35] rounded-xl focus:border-[#FF6B35] outline-none transition bg-white font-black text-gray-800 cursor-pointer shadow-sm"
+                >
+                  {Array.from({ length: 15 }, (_, i) => new Date().getFullYear() + 1 - i).map(year => (
+                    <option key={year} value={year.toString()}>
+                      Year {year} (सत्र {year})
+                    </option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1">Date of Birth</label>
@@ -1581,16 +1642,15 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
               <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl space-y-2 text-xs">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="font-black text-gray-800 block text-[11px]">4B. Student Aadhaar – BACK SIDE</span>
+                    <span className="font-black text-gray-800 block text-[11px]">4B. Student Aadhaar – BACK SIDE *</span>
                     <span className="text-[10px] text-gray-400">स्वयं का आधार कार्ड (पीछे का भाग - पता व QR)</span>
                   </div>
                   <div>
                     <select
-                      value={form.studentAadhaarDocBack && form.studentAadhaarDocBack.startsWith('data:') ? 'Received (Digital)' : (form.studentAadhaarDocBack || 'Not Provided')}
+                      value={form.studentAadhaarDocBack && form.studentAadhaarDocBack.startsWith('data:') ? 'Received (Digital)' : (form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Not Provided' ? form.studentAadhaarDocBack : 'Pending')}
                       onChange={e => setForm({ ...form, studentAadhaarDocBack: e.target.value })}
                       className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-white border border-gray-250 cursor-pointer text-[#1A1A2E]"
                     >
-                      <option value="Not Provided">⚪ Not Provided</option>
                       <option value="Pending">❌ Pending</option>
                       <option value="Received Handover">✅ Received</option>
                     </select>

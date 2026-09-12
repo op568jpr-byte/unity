@@ -34,6 +34,29 @@ const convertYYYYMMDDToDDMMYYYY = (dateStr: string) => {
   return dateStr;
 };
 
+const extractYearFromDate = (dateStr: string): string => {
+  if (!dateStr) return new Date().getFullYear().toString();
+  // if formatted as DD/MM/YYYY
+  const slashParts = dateStr.split('/');
+  if (slashParts.length === 3) {
+    return slashParts[2];
+  }
+  // if formatted as YYYY-MM-DD
+  const dashParts = dateStr.split('-');
+  if (dashParts.length === 3) {
+    return dashParts[0];
+  }
+  // If it's already just a 4 digit year
+  if (/^\d{4}$/.test(dateStr.trim())) {
+    return dateStr.trim();
+  }
+  const parsed = new Date(dateStr);
+  if (!isNaN(parsed.getFullYear())) {
+    return parsed.getFullYear().toString();
+  }
+  return new Date().getFullYear().toString();
+};
+
 import Logo from './Logo';
 
 interface StudentSelfRegistrationProps {
@@ -362,7 +385,12 @@ export default function StudentSelfRegistration({
         onShowToast('Student Aadhaar Card Front Side (आगे का भाग) photo upload is mandatory! 💳⚠️', true);
         return;
       }
-      // Father's Aadhaar and Aadhaar Back side are optional
+      const hasBackAadhaar = form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending Submission';
+      if (!hasBackAadhaar) {
+        onShowToast('Student Aadhaar Card Back Side (पीछे का भाग) photo upload is mandatory! 💳⚠️', true);
+        return;
+      }
+      // Father's Aadhaar is optional
     }
     setStep(prev => Math.min(prev + 1, 6));
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -882,6 +910,22 @@ Warden verification pending.
   };
 
   const handleFormSubmit = async () => {
+    // Validate mandatory documents before submit
+    const hasFrontAadhaar = (form.studentAadhaarDocFront && form.studentAadhaarDocFront !== 'Pending Submission') || 
+                            (form.studentAadhaarDoc && form.studentAadhaarDoc !== 'Pending Submission');
+    if (!hasFrontAadhaar) {
+      onShowToast('Student Aadhaar Card Front Side (आगे का भाग) photo upload is mandatory! 💳⚠️', true);
+      setStep(5);
+      return;
+    }
+
+    const hasBackAadhaar = form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending Submission';
+    if (!hasBackAadhaar) {
+      onShowToast('Student Aadhaar Card Back Side (पीछे का भाग) photo upload is mandatory! 💳⚠️', true);
+      setStep(5);
+      return;
+    }
+
     setIsSubmitting(true);
     onShowToast("Saving registration to database... ⏳");
 
@@ -1522,14 +1566,25 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-extrabold text-[#FF6B35] mb-1.5 font-sans">Date of Admission (प्रवेश तिथि) *</label>
-                  <input 
-                    type="date"
-                    value={convertDDMMYYYYToYYYYMMDD(form.joinDate)}
-                    onChange={e => setForm({ ...form, joinDate: convertYYYYMMDDToDDMMYYYY(e.target.value) })}
-                    className="w-full px-4 py-3 border border-[#FF6B35] rounded-xl focus:border-[#FF6B35] outline-none text-xs sm:text-sm bg-white font-sans font-extrabold text-[#FF6B35]"
+                  <label className="block text-xs font-extrabold text-[#FF6B35] mb-1.5 font-sans">Year of Admission (प्रवेश वर्ष) *</label>
+                  <select
+                    value={extractYearFromDate(form.joinDate)}
+                    onChange={e => {
+                      const chosenYear = e.target.value;
+                      const parts = form.joinDate ? form.joinDate.split('/') : [];
+                      const day = parts.length === 3 ? parts[0] : '01';
+                      const month = parts.length === 3 ? parts[1] : '07';
+                      setForm({ ...form, joinDate: `${day}/${month}/${chosenYear}` });
+                    }}
+                    className="w-full px-4 py-3 border border-[#FF6B35] rounded-xl focus:border-[#FF6B35] outline-none text-xs sm:text-sm bg-white font-sans font-black text-gray-800 cursor-pointer shadow-sm"
                     required
-                  />
+                  >
+                    {Array.from({ length: 15 }, (_, i) => new Date().getFullYear() + 1 - i).map(year => (
+                      <option key={year} value={year.toString()}>
+                        Year {year} (सत्र {year})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-xs font-semibold text-gray-500 mb-1.5">Date of Birth (DOB) *</label>
@@ -2216,12 +2271,12 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                   <div className="border border-gray-150 rounded-2xl p-4 bg-gray-50 flex flex-col justify-between gap-3 text-xs">
                     <div>
                       <div className="flex justify-between items-center mb-1">
-                        <span className="font-extrabold text-gray-700 text-xs">4B. Student Aadhaar – BACK SIDE (पीछे का भाग)</span>
-                        <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.studentAadhaarDocBack ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-100 text-gray-600'}`}>
-                          {form.studentAadhaarDocBack ? 'Uploaded' : 'Optional'}
+                        <span className="font-extrabold text-gray-700 text-xs">4B. Student Aadhaar – BACK SIDE (पीछे का भाग) *</span>
+                        <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending Submission' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-805'}`}>
+                          {form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending Submission' ? 'Uploaded' : 'Pending'}
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-400 leading-normal">Back side containing permanent address details & QR code.</p>
+                      <p className="text-[10px] text-gray-400 leading-normal">Mandatory: Back side containing permanent address details & QR code.</p>
                     </div>
                     {form.studentAadhaarDocBack && (
                       <div className="flex gap-2 items-center bg-white p-2 rounded-xl border border-gray-200 mb-2">
