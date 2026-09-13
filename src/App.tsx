@@ -447,6 +447,29 @@ export default function App() {
       DEFAULT_SETTINGS
     );
 
+    // Synchronize central credentials from server (ensures mobile & desktop always match)
+    fetch('/api/credentials')
+      .then(r => r.json())
+      .then(res => {
+        if (res && res.success && res.credentials) {
+          const c = res.credentials;
+          if (c.masterUsername) safeStorage.setItem('ubh_creds_master_u', c.masterUsername);
+          if (c.masterPassword) safeStorage.setItem('ubh_creds_master_p', c.masterPassword);
+          if (c.staffUsername) safeStorage.setItem('ubh_creds_staff_u', c.staffUsername);
+          if (c.staffPassword) safeStorage.setItem('ubh_creds_staff_p', c.staffPassword);
+          if (c.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', c.recoveryKey);
+          setSettings(prev => ({
+            ...prev,
+            masterUsername: c.masterUsername || prev.masterUsername,
+            masterPassword: c.masterPassword || prev.masterPassword,
+            staffUsername: c.staffUsername || prev.staffUsername,
+            staffPassword: c.staffPassword || prev.staffPassword,
+            recoveryKey: c.recoveryKey || prev.recoveryKey
+          }));
+        }
+      })
+      .catch(() => {});
+
     // Sessions
     try {
       const cachedSession = safeStorage.getItem('ubh_session');
@@ -1344,6 +1367,27 @@ export default function App() {
     if (finalSettings.staffUsername) safeStorage.setItem('ubh_creds_staff_u', finalSettings.staffUsername);
     if (finalSettings.staffPassword) safeStorage.setItem('ubh_creds_staff_p', finalSettings.staffPassword);
     if (finalSettings.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', finalSettings.recoveryKey);
+
+    // Synchronize credentials and state to central server so mobile and desktop never desync
+    try {
+      fetch('/api/credentials', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          masterUsername: finalSettings.masterUsername,
+          masterPassword: finalSettings.masterPassword,
+          staffUsername: finalSettings.staffUsername,
+          staffPassword: finalSettings.staffPassword,
+          recoveryKey: finalSettings.recoveryKey
+        })
+      }).catch(() => {});
+
+      fetch('/api/state', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: finalSettings })
+      }).catch(() => {});
+    } catch (e) {}
 
     try {
       await saveDocument('settings', 'hostel_settings', finalSettings);

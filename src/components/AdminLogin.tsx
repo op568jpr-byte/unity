@@ -27,6 +27,33 @@ export default function AdminLogin({ onClose, onLoginSuccess, onShowToast, setti
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
   const [generatedOtpHint, setGeneratedOtpHint] = useState<string | null>(null);
 
+  // Synchronize credentials with central server on mount
+  React.useEffect(() => {
+    fetch('/api/credentials')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.success && data.credentials) {
+          const c = data.credentials;
+          if (c.masterUsername) localStorage.setItem('ubh_creds_master_u', c.masterUsername);
+          if (c.masterPassword) localStorage.setItem('ubh_creds_master_p', c.masterPassword);
+          if (c.staffUsername) localStorage.setItem('ubh_creds_staff_u', c.staffUsername);
+          if (c.staffPassword) localStorage.setItem('ubh_creds_staff_p', c.staffPassword);
+          if (c.recoveryKey) localStorage.setItem('ubh_creds_recovery_key', c.recoveryKey);
+          if (settings && onSaveSettings) {
+            onSaveSettings({
+              ...settings,
+              masterUsername: c.masterUsername || settings.masterUsername,
+              masterPassword: c.masterPassword || settings.masterPassword,
+              staffUsername: c.staffUsername || settings.staffUsername,
+              staffPassword: c.staffPassword || settings.staffPassword,
+              recoveryKey: c.recoveryKey || settings.recoveryKey,
+            });
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const getStoredCreds = () => {
     const masterU = settings?.masterUsername || localStorage.getItem('ubh_creds_master_u') || 'admin';
     const masterP = settings?.masterPassword || localStorage.getItem('ubh_creds_master_p') || 'admin123';
@@ -111,6 +138,13 @@ export default function AdminLogin({ onClose, onLoginSuccess, onShowToast, setti
     // Save to localStorage
     const passKey = forgotRole === 'master' ? 'ubh_creds_master_p' : 'ubh_creds_staff_p';
     localStorage.setItem(passKey, newPassword);
+
+    // Save to server credentials API so all devices get the same password
+    fetch('/api/credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(forgotRole === 'master' ? { masterPassword: newPassword } : { staffPassword: newPassword })
+    }).catch(() => {});
 
     // Also update globally synced settings if handler exists
     if (settings && onSaveSettings) {

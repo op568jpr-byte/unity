@@ -6,6 +6,15 @@ import { createServer as createViteServer } from 'vite';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SUBMISSIONS_FILE = path.join(DATA_DIR, 'student_submissions.json');
 const STATE_FILE = path.join(DATA_DIR, 'hostel_state.json');
+const CREDS_FILE = path.join(DATA_DIR, 'credentials.json');
+
+const DEFAULT_CREDENTIALS = {
+  masterUsername: 'admin',
+  masterPassword: 'admin123',
+  staffUsername: 'staff',
+  staffPassword: 'staff123',
+  recoveryKey: 'A040619932024Z'
+};
 
 function ensureDataDir() {
   try {
@@ -18,8 +27,34 @@ function ensureDataDir() {
     if (!fs.existsSync(STATE_FILE)) {
       fs.writeFileSync(STATE_FILE, JSON.stringify({}), 'utf-8');
     }
+    if (!fs.existsSync(CREDS_FILE)) {
+      fs.writeFileSync(CREDS_FILE, JSON.stringify(DEFAULT_CREDENTIALS, null, 2), 'utf-8');
+    }
   } catch (err) {
     console.error('Error ensuring data directory:', err);
+  }
+}
+
+function getCredentials() {
+  ensureDataDir();
+  try {
+    const content = fs.readFileSync(CREDS_FILE, 'utf-8');
+    return { ...DEFAULT_CREDENTIALS, ...JSON.parse(content) };
+  } catch (err) {
+    return DEFAULT_CREDENTIALS;
+  }
+}
+
+function saveCredentials(data: Partial<typeof DEFAULT_CREDENTIALS>) {
+  ensureDataDir();
+  try {
+    const current = getCredentials();
+    const updated = { ...current, ...data };
+    fs.writeFileSync(CREDS_FILE, JSON.stringify(updated, null, 2), 'utf-8');
+    return updated;
+  } catch (err) {
+    console.error('Error saving credentials file:', err);
+    return DEFAULT_CREDENTIALS;
   }
 }
 
@@ -75,6 +110,30 @@ async function startServer() {
   // API routes first
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', mode: process.env.NODE_ENV, submissionsCount: getSubmissions().length });
+  });
+
+  // Centralized credentials sync across desktop and mobile
+  app.get('/api/credentials', (req, res) => {
+    try {
+      const creds = getCredentials();
+      res.json({ success: true, credentials: creds });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  app.post('/api/credentials', (req, res) => {
+    try {
+      const incoming = req.body;
+      if (typeof incoming === 'object' && incoming !== null) {
+        const updated = saveCredentials(incoming);
+        res.json({ success: true, credentials: updated });
+      } else {
+        res.status(400).json({ success: false, error: 'Invalid credentials payload' });
+      }
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   // Complete hostel data state backup & sync (100% Free, zero Firebase quota needed)

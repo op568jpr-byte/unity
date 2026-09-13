@@ -97,6 +97,19 @@ export default function SettingsPanel({
     localStorage.setItem('ubh_creds_staff_p', staffPass);
     localStorage.setItem('ubh_creds_recovery_key', recoveryKey.trim());
 
+    // Centralized credentials sync so all mobile & desktop devices get the same password
+    fetch('/api/credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        masterUsername: masterUser,
+        masterPassword: masterPass,
+        staffUsername: staffUser,
+        staffPassword: staffPass,
+        recoveryKey: recoveryKey.trim()
+      })
+    }).catch(() => {});
+
     // Save to Firestore synced settings along with all current form fields (e.g. totalBeds)
     const fullUpdatedSettings: HostelSettings = {
       ...form,
