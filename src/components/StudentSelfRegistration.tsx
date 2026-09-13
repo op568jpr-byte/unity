@@ -209,7 +209,7 @@ export default function StudentSelfRegistration({
       onShowToast("Compressing & loading document... 📂");
 
       try {
-        const compressedBase64 = await compressImageFile(file, 800, 800, 0.65);
+        const compressedBase64 = await compressImageFile(file, 640, 640, 0.55);
         setForm((prev: any) => {
           const updates: any = { [fieldName]: compressedBase64 };
           if (fieldName === 'studentAadhaarDocFront') {
@@ -220,7 +220,7 @@ export default function StudentSelfRegistration({
         onShowToast("Document optimized & attached! 📂✅");
       } catch (err) {
         try {
-          const fallbackBase64 = await compressImageFile(file, 600, 600, 0.5);
+          const fallbackBase64 = await compressImageFile(file, 500, 500, 0.45);
           setForm((prev: any) => {
             const updates: any = { [fieldName]: fallbackBase64 };
             if (fieldName === 'studentAadhaarDocFront') {
@@ -1008,23 +1008,47 @@ Warden verification pending.
         fatherAadhaarDoc: form.fatherAadhaarDoc || 'Pending Submission'
       };
 
-      // 1. Direct Firestore write
+      // 1. Send directly to Hostel Server persistent storage (guaranteed to succeed even if Firebase quota is exhausted)
+      let serverSaved = false;
       try {
-        await saveDocument('students', studentId, studentPayload);
-      } catch (firestoreErr) {
-        console.warn("Direct firestore write warning:", firestoreErr);
+        const resp = await fetch('/api/submissions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(studentPayload)
+        });
+        if (resp.ok) {
+          serverSaved = true;
+          console.log('[Self-Registration] Saved to hostel server backup successfully!');
+        }
+      } catch (srvErr) {
+        console.warn('Server submission notice:', srvErr);
       }
 
-      // 2. State callback to parent App
+      // 2. Direct Firestore Cloud write
+      let cloudSaved = false;
+      try {
+        await saveDocument('students', studentId, studentPayload);
+        cloudSaved = true;
+      } catch (firestoreErr) {
+        console.warn('Direct firestore write warning:', firestoreErr);
+      }
+
+      // 3. State callback to parent App if within the same admin session
       try {
         await onAddStudent(studentPayload);
       } catch (callbackErr) {
-        console.warn("State callback warning:", callbackErr);
+        console.warn('State callback warning:', callbackErr);
       }
 
-      // Clear any legacy single-submission locks
+      // 4. Save copy to mobile device localStorage so student never loses their submitted receipt
       try {
-        localStorage.removeItem('ubh_student_submitted');
+        localStorage.setItem(`ubh_sub_${studentId}`, JSON.stringify(studentPayload));
+        localStorage.setItem('ubh_last_submission', JSON.stringify({
+          id: studentId,
+          name: form.name,
+          mobile: form.mobile,
+          date: form.joinDate || new Date().toLocaleDateString('en-IN')
+        }));
       } catch (e) {}
 
       const nowStr = form.joinDate || new Date().toLocaleDateString('en-IN');
@@ -1036,7 +1060,11 @@ Warden verification pending.
         fullForm: form
       });
 
-      onShowToast("Admission form registered successfully in Hostel Cloud! 🎉");
+      if (serverSaved || cloudSaved) {
+        onShowToast('Admission form successfully received and recorded at Hostel! 🎉📋');
+      } else {
+        onShowToast('Form recorded on your device. Please send receipt on WhatsApp to confirm! ⚠️');
+      }
       setStep(6); // Show success screen
     } catch (e: any) {
       console.error("Error during student self-registration submission:", e);

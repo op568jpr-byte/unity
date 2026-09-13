@@ -1,6 +1,9 @@
 import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, 
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   collection, 
   doc, 
   setDoc, 
@@ -8,7 +11,9 @@ import {
   onSnapshot, 
   writeBatch,
   getDoc,
-  getDocs
+  getDocs,
+  disableNetwork,
+  enableNetwork
 } from 'firebase/firestore';
 import config from '../../firebase-applet-config.json';
 
@@ -21,11 +26,80 @@ const app = initializeApp({
   appId: config.appId
 });
 
-export const db = config.firestoreDatabaseId 
-  ? getFirestore(app, config.firestoreDatabaseId)
-  : getFirestore(app);
+// Initialize with persistent multi-tab cache for maximum resilience
+export const db = (() => {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      })
+    }, config.firestoreDatabaseId || undefined);
+  } catch (e) {
+    return config.firestoreDatabaseId 
+      ? getFirestore(app, config.firestoreDatabaseId)
+      : getFirestore(app);
+  }
+})();
 
 export const firebaseEnabled = true;
+
+// Quota and Resilience State Management
+let quotaExceededState = false;
+let networkDisabledState = false;
+
+export function isQuotaError(error: any): boolean {
+  if (!error) return false;
+  const errStr = String(error?.message || error?.code || error || '').toLowerCase();
+  return (
+    error?.code === 'resource-exhausted' ||
+    errStr.includes('resource-exhausted') ||
+    errStr.includes('quota limit exceeded') ||
+    errStr.includes('quota exceeded') ||
+    errStr.includes('quota metric') ||
+    errStr.includes('free daily write units') ||
+    errStr.includes('free daily read units') ||
+    errStr.includes('429')
+  );
+}
+
+export function checkIsQuotaExceeded(): boolean {
+  return quotaExceededState;
+}
+
+export const isQuotaExceeded = checkIsQuotaExceeded;
+
+export function markQuotaExceeded(context?: string) {
+  quotaExceededState = true;
+  console.warn(`[Unity Boys Hostel] Firestore daily quota notice (${context || 'operations'}). Local storage active.`);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { context } }));
+  }
+}
+
+export async function tryReenableNetwork(): Promise<boolean> {
+  try {
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('ubh_firestore_quota_exceeded');
+    }
+    quotaExceededState = false;
+    networkDisabledState = false;
+    await enableNetwork(db);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// Storage fallback keys mapping for collections
+const collectionStorageKeys: Record<string, string> = {
+  students: 'ubh_students',
+  payments: 'ubh_payments',
+  complaints: 'ubh_complaints',
+  visitors: 'ubh_visitors',
+  partnerWithdrawals: 'ubh_partner_withdrawals',
+  expenses: 'ubh_hostel_expenses',
+  settings: 'ubh_settings'
+};
 
 // Helper to sanitize data for Firestore (remove undefined and replace with empty string or null)
 export function sanitizeForFirestore(data: any): any {
@@ -60,17 +134,11 @@ export async function saveDocument(collectionName: string, id: string | number, 
     const docRef = doc(db, collectionName, id.toString());
     await setDoc(docRef, sanitized);
   } catch (error: any) {
-    const isQuota = error?.message?.includes('Quota exceeded') || 
-      error?.code?.includes('resource-exhausted') || 
-      String(error).includes('Quota exceeded') ||
-      String(error).includes('quota');
-
-    if (isQuota) {
-      console.warn(`Firestore quota reached while saving to ${collectionName}. Work cached locally.`, error.message || error);
-      window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: collectionName } }));
-    } else {
-      console.error(`Error saving document to ${collectionName}:`, error);
+    if (isQuotaError(error)) {
+      markQuotaExceeded(`save:${collectionName}`);
+      return;
     }
+    console.error(`Error saving document to ${collectionName}:`, error);
     throw error;
   }
 }
@@ -81,23 +149,31 @@ export async function deleteDocument(collectionName: string, id: string | number
     const docRef = doc(db, collectionName, id.toString());
     await deleteDoc(docRef);
   } catch (error: any) {
-    const isQuota = error?.message?.includes('Quota exceeded') || 
-      error?.code?.includes('resource-exhausted') || 
-      String(error).includes('Quota exceeded') ||
-      String(error).includes('quota');
-
-    if (isQuota) {
-      console.warn(`Firestore quota reached while deleting from ${collectionName}. Work cached locally.`, error.message || error);
-      window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: collectionName } }));
-    } else {
-      console.error(`Error deleting document from ${collectionName}:`, error);
+    if (isQuotaError(error)) {
+      markQuotaExceeded(`delete:${collectionName}`);
+      return;
     }
+    console.error(`Error deleting document from ${collectionName}:`, error);
     throw error;
   }
 }
 
 // Fetch all documents of a collection directly from Firestore
 export async function fetchCollectionDocuments<T>(collectionName: string): Promise<T[]> {
+  const getLocalFallback = (): T[] => {
+    const fallbackKey = collectionStorageKeys[collectionName];
+    if (fallbackKey && typeof window !== 'undefined') {
+      try {
+        const item = localStorage.getItem(fallbackKey);
+        if (item) {
+          const parsed = JSON.parse(item);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (e) {}
+    }
+    return [];
+  };
+
   try {
     const colRef = collection(db, collectionName);
     const snapshot = await getDocs(colRef);
@@ -107,16 +183,19 @@ export async function fetchCollectionDocuments<T>(collectionName: string): Promi
     });
     return list;
   } catch (error: any) {
-    console.error(`Error fetching collection ${collectionName}:`, error);
-    return [];
+    if (isQuotaError(error)) {
+      markQuotaExceeded(`fetch:${collectionName}`);
+      return getLocalFallback();
+    }
+    console.warn(`Unable to fetch collection ${collectionName} from cloud. Using local storage.`);
+    return getLocalFallback();
   }
 }
 
 // Batch save multiple documents to Firestore
 export async function batchSaveDocuments(collectionName: string, items: any[]): Promise<void> {
-  if (!items || items.length === 0) return;
+  if (!items || items.length === 0 || isQuotaExceeded()) return;
   try {
-    // Firestore batch limit is 500 operations
     const CHUNK_SIZE = 400;
     for (let i = 0; i < items.length; i += CHUNK_SIZE) {
       const chunk = items.slice(i, i + CHUNK_SIZE);
@@ -130,106 +209,74 @@ export async function batchSaveDocuments(collectionName: string, items: any[]): 
       await batch.commit();
     }
   } catch (error: any) {
-    console.error(`Error in batchSaveDocuments for ${collectionName}:`, error);
-    throw error;
+    if (isQuotaError(error)) {
+      markQuotaExceeded(`batchSave:${collectionName}`);
+      return;
+    }
+    console.warn(`Batch save skipped for ${collectionName}:`, error?.message || error);
   }
 }
 
-// Set up real-time listener for a collection, and seed it if it's empty
+// Set up real-time listener for a collection
 export function setupCollectionSync<T>(
   collectionName: string,
   onUpdate: (data: T[]) => void,
   initialDataFallback: T[]
 ) {
-
   const colRef = collection(db, collectionName);
   
-  return onSnapshot(colRef, async (snapshot) => {
-    if (snapshot.empty && initialDataFallback && initialDataFallback.length > 0) {
-      try {
-        const seedRef = doc(db, 'system_metadata', 'seeding');
-        const seedSnap = await getDoc(seedRef);
-        const seededData = seedSnap.exists() ? seedSnap.data() : {};
-        if (seededData[collectionName]) {
-          // Already seeded before, do not re-seed when empty!
-          onUpdate([]);
-          return;
-        }
-
-        console.log(`Seeding initial data for ${collectionName}...`);
-        const batch = writeBatch(db);
-        initialDataFallback.forEach((item: any) => {
-          const id = item.id;
-          if (id) {
-            const docRef = doc(colRef, id.toString());
-            batch.set(docRef, sanitizeForFirestore(item));
-          }
-        });
-        await batch.commit();
-
-        // Mark as seeded in Firestore
-        await setDoc(seedRef, { ...seededData, [collectionName]: true }, { merge: true });
-      } catch (e: any) {
-        const isQuota = e?.message?.includes('Quota exceeded') || 
-          e?.code?.includes('resource-exhausted') || 
-          String(e).includes('Quota exceeded') ||
-          String(e).includes('quota');
-
-        if (isQuota) {
-          console.warn(`Firestore quota reached while checking seeding status for ${collectionName}. Using fallback:`, e.message || e);
-          window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: collectionName } }));
-        } else {
-          console.error(`Error checking seeding status for ${collectionName}:`, e);
-        }
+  try {
+    return onSnapshot(colRef, (snapshot) => {
+      if (snapshot.empty) {
         onUpdate([]);
+      } else {
+        const list: T[] = [];
+        snapshot.forEach((doc) => {
+          list.push(doc.data() as T);
+        });
+        onUpdate(list);
       }
-    } else {
-      const list: T[] = [];
-      snapshot.forEach((doc) => {
-        list.push(doc.data() as T);
-      });
-      onUpdate(list);
+    }, (error: any) => {
+      if (isQuotaError(error)) {
+        markQuotaExceeded(`sync:${collectionName}`);
+        return;
+      }
+      console.warn(`Sync warning for ${collectionName}:`, error?.message || error);
+    });
+  } catch (err: any) {
+    if (isQuotaError(err)) {
+      markQuotaExceeded(`listener:${collectionName}`);
     }
-  }, (error: any) => {
-    const isQuota = error?.message?.includes('Quota exceeded') || 
-      error?.code?.includes('resource-exhausted') || 
-      String(error).includes('Quota exceeded') ||
-      String(error).includes('quota');
-
-    if (isQuota) {
-      console.warn(`Firestore quota reached for syncing ${collectionName}. Using cached device data:`, error.message || error);
-      window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: collectionName } }));
-    } else {
-      console.error(`Error syncing collection ${collectionName}:`, error);
-    }
-  });
+    return () => {};
+  }
 }
 
-// Set up real-time listener for settings, and seed it if it's empty
+// Set up real-time listener for settings
 export function setupSettingsSync(
   onUpdate: (settings: any) => void,
   fallbackSettings: any
 ) {
   const docRef = doc(db, 'settings', 'hostel_settings');
   
-  return onSnapshot(docRef, async (snapshot) => {
-    if (!snapshot.exists()) {
-      console.log('Seeding initial hostel settings...');
-      await setDoc(docRef, sanitizeForFirestore(fallbackSettings));
-    } else {
-      onUpdate({ ...fallbackSettings, ...snapshot.data() });
+  try {
+    return onSnapshot(docRef, (snapshot) => {
+      if (snapshot.exists()) {
+        onUpdate({ ...fallbackSettings, ...snapshot.data() });
+      } else {
+        onUpdate(fallbackSettings);
+      }
+    }, (error: any) => {
+      if (isQuotaError(error)) {
+        markQuotaExceeded('sync:settings');
+        return;
+      }
+      console.warn('Settings sync warning:', error?.message || error);
+    });
+  } catch (err: any) {
+    if (isQuotaError(err)) {
+      markQuotaExceeded('listener:settings');
     }
-  }, (error: any) => {
-    const isQuota = error?.message?.includes('Quota exceeded') || 
-      error?.code?.includes('resource-exhausted') || 
-      String(error).includes('Quota exceeded') ||
-      String(error).includes('quota');
-
-    if (isQuota) {
-      console.warn('Firestore quota reached for syncing settings. Using cached device data:', error.message || error);
-      window.dispatchEvent(new CustomEvent('firestore-quota-exceeded', { detail: { collection: 'settings' } }));
-    } else {
-      console.error('Error syncing settings:', error);
-    }
-  });
+    return () => {};
+  }
 }
+

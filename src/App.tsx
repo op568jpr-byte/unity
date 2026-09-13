@@ -11,7 +11,9 @@ import {
   saveDocument, 
   deleteDocument,
   fetchCollectionDocuments,
-  batchSaveDocuments
+  batchSaveDocuments,
+  checkIsQuotaExceeded,
+  tryReenableNetwork
 } from './lib/firebase';
 
 // Core types & fallback startup data
@@ -177,7 +179,7 @@ export default function App() {
   });
   const [session, setSession] = useState<UserSession | null>(null);
   const [isFirebaseConnected, setIsFirebaseConnected] = useState(false);
-  const [isQuotaExceeded, setIsQuotaExceeded] = useState(false);
+  const [isQuotaExceeded, setIsQuotaExceeded] = useState(() => checkIsQuotaExceeded());
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('');
 
@@ -205,32 +207,65 @@ export default function App() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastError, setToastError] = useState(false);
 
+  // --- PERIODIC & ON-DEMAND SERVER SUBMISSIONS SYNC (DUAL STORAGE) ---
+  const syncServerSubmissions = async () => {
+    try {
+      const res = await fetch('/api/submissions');
+      if (!res.ok) return;
+      const json = await res.json();
+      if (json.success && Array.isArray(json.submissions) && json.submissions.length > 0) {
+        setStudents(prev => {
+          let hasNew = false;
+          const merged = [...prev];
+          for (const sub of json.submissions) {
+            const exists = merged.some(s => s.id === sub.id || (s.mobile && s.mobile === sub.mobile && s.name === sub.name));
+            if (!exists) {
+              merged.unshift(sub);
+              hasNew = true;
+            }
+          }
+          if (hasNew) {
+            safeStorage.setItem('ubh_students', JSON.stringify(merged));
+            showToast(`Received ${json.submissions.length} online admissions from hostel server! 📋⚡`);
+          }
+          return merged;
+        });
+      }
+    } catch (e) {
+      console.warn('Server sync check notice:', e);
+    }
+  };
+
   // --- DATABASE INITIALIZATION ON MOUNT ---
   useEffect(() => {
-    // One-time deletion of old demo partner withdrawals & expenses from Firestore
-    const clearDemoEntries = async () => {
-      try {
-        const demoWIds = [5001, 5002, 5003, 5004];
-        const demoEIds = [6001, 6002, 6003, 6004, 6005];
-        for (const id of demoWIds) {
-          await deleteDocument('partnerWithdrawals', id);
-        }
-        for (const id of demoEIds) {
-          await deleteDocument('expenses', id);
-        }
-      } catch (err) {
-        console.error('Error clearing demo entries:', err);
-      }
-    };
-    clearDemoEntries();
+    if (checkIsQuotaExceeded()) {
+      setIsQuotaExceeded(true);
+    }
+
+    // Sync any submissions stored on server filesystem
+    syncServerSubmissions();
+    const serverSyncTimer = setInterval(syncServerSubmissions, 12000);
 
     // Set up real-time sync for students
     const unsubStudents = setupCollectionSync<Student>(
       'students',
       (data) => {
         if (data && data.length > 0) {
-          setStudents(data);
-          safeStorage.setItem('ubh_students', JSON.stringify(data));
+          const cached = safeStorage.getItem('ubh_students');
+          let combined = data;
+          if (cached) {
+            try {
+              const parsed = JSON.parse(cached);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const localOnly = parsed.filter(p => !data.some(d => d.id === p.id));
+                if (localOnly.length > 0) {
+                  combined = [...data, ...localOnly];
+                }
+              }
+            } catch (e) {}
+          }
+          setStudents(combined);
+          safeStorage.setItem('ubh_students', JSON.stringify(combined));
         } else {
           const cached = safeStorage.getItem('ubh_students');
           if (cached) {
@@ -238,7 +273,6 @@ export default function App() {
               const parsed = JSON.parse(cached);
               if (Array.isArray(parsed) && parsed.length > 0) {
                 setStudents(parsed);
-                parsed.forEach(item => saveDocument('students', item.id, item).catch(() => {}));
                 setIsFirebaseConnected(true);
                 return;
               }
@@ -265,7 +299,6 @@ export default function App() {
               const parsed = JSON.parse(cached);
               if (Array.isArray(parsed) && parsed.length > 0) {
                 setPayments(parsed);
-                parsed.forEach(item => saveDocument('payments', item.id, item).catch(() => {}));
                 return;
               }
             } catch (e) {}
@@ -290,7 +323,6 @@ export default function App() {
               const parsed = JSON.parse(cached);
               if (Array.isArray(parsed) && parsed.length > 0) {
                 setComplaints(parsed);
-                parsed.forEach(item => saveDocument('complaints', item.id, item).catch(() => {}));
                 return;
               }
             } catch (e) {}
@@ -315,7 +347,6 @@ export default function App() {
               const parsed = JSON.parse(cached);
               if (Array.isArray(parsed) && parsed.length > 0) {
                 setVisitors(parsed);
-                parsed.forEach(item => saveDocument('visitors', item.id, item).catch(() => {}));
                 return;
               }
             } catch (e) {}
@@ -340,7 +371,6 @@ export default function App() {
               const parsed = JSON.parse(cached);
               if (Array.isArray(parsed) && parsed.length > 0) {
                 setPartnerWithdrawals(parsed);
-                parsed.forEach(item => saveDocument('partnerWithdrawals', item.id, item).catch(() => {}));
                 return;
               }
             } catch (e) {}
@@ -365,7 +395,6 @@ export default function App() {
               const parsed = JSON.parse(cached);
               if (Array.isArray(parsed) && parsed.length > 0) {
                 setExpenses(parsed);
-                parsed.forEach(item => saveDocument('expenses', item.id, item).catch(() => {}));
                 return;
               }
             } catch (e) {}
@@ -414,10 +443,6 @@ export default function App() {
         if (merged.staffUsername) safeStorage.setItem('ubh_creds_staff_u', merged.staffUsername);
         if (merged.staffPassword) safeStorage.setItem('ubh_creds_staff_p', merged.staffPassword);
         if (merged.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', merged.recoveryKey);
-
-        if (typeof data?.totalBeds !== 'number' || data.totalBeds !== effectiveTotalBeds) {
-          saveDocument('settings', 'hostel_settings', merged).catch(() => {});
-        }
       },
       DEFAULT_SETTINGS
     );
@@ -501,6 +526,7 @@ export default function App() {
       unsubWithdrawals();
       unsubExpenses();
       unsubSettings();
+      clearInterval(serverSyncTimer);
       window.removeEventListener('popstate', checkUrlRoute);
       window.removeEventListener('hashchange', checkUrlRoute);
       window.removeEventListener('firestore-quota-exceeded', handleQuotaExceeded);
@@ -567,7 +593,20 @@ export default function App() {
   // --- CLOUD SYNC & RECONCILIATION ENGINE ---
   const handleForceSyncCloud = async () => {
     setIsSyncingCloud(true);
+    // 1. First sync any submissions received directly by hostel server
+    await syncServerSubmissions();
+
     try {
+      if (isQuotaExceeded || checkIsQuotaExceeded()) {
+        const networkReconnected = await tryReenableNetwork();
+        if (!networkReconnected) {
+          setIsQuotaExceeded(true);
+          showToast('Firebase free daily quota is currently reached. Your data is safely saved on this device and fully available offline. 🛡️');
+          setIsSyncingCloud(false);
+          return;
+        }
+      }
+
       showToast('Connecting to Firebase Cloud and syncing all records... ⏳');
       const [fStudents, fPayments, fComplaints, fVisitors, fWithdrawals, fExpenses] = await Promise.all([
         fetchCollectionDocuments<Student>('students'),
@@ -647,8 +686,12 @@ export default function App() {
       setLastSyncTime(nowStr);
       showToast(`Cloud Sync Complete! (${finalStudents.length} Students & ${finalPayments.length} Payments live) 🔄☁️`);
     } catch (err: any) {
-      console.error('Error during cloud force sync:', err);
-      showToast(`Sync alert: ${err?.message || 'Check network connection'}`, true);
+      if (isQuotaExceeded || checkIsQuotaExceeded()) {
+        showToast('Firestore daily quota limit reached. Data is securely preserved locally. 🛡️');
+      } else {
+        console.warn('Notice during cloud sync:', err?.message || err);
+        showToast(`Sync notification: ${err?.message || 'Using local database'}`, true);
+      }
     } finally {
       setIsSyncingCloud(false);
     }
@@ -657,6 +700,11 @@ export default function App() {
   const handlePushAllLocalToCloud = async () => {
     setIsSyncingCloud(true);
     try {
+      if (isQuotaExceeded || checkIsQuotaExceeded()) {
+        showToast('Firestore daily quota limit reached. Your records are safely maintained locally on this device. 🛡️');
+        setIsSyncingCloud(false);
+        return;
+      }
       showToast('Uploading all local data to Firebase Cloud... ⏳');
       await Promise.all([
         batchSaveDocuments('students', students),
@@ -671,8 +719,12 @@ export default function App() {
       setLastSyncTime(nowStr);
       showToast('All local data uploaded to Firebase Cloud! Desktop & Mobile now share identical data. 🎉☁️');
     } catch (err: any) {
-      console.error('Error uploading local data to cloud:', err);
-      showToast(`Upload failed: ${err?.message || 'Error'}`, true);
+      if (isQuotaExceeded || checkIsQuotaExceeded()) {
+        showToast('Firestore daily quota limit reached. Local cache remains active. 🛡️');
+      } else {
+        console.warn('Notice uploading local data to cloud:', err?.message || err);
+        showToast(`Upload status: ${err?.message || 'Saved locally'}`, true);
+      }
     } finally {
       setIsSyncingCloud(false);
     }
@@ -916,14 +968,14 @@ export default function App() {
 
   // Registering fresh students or editing existing ones
   const handleAddStudent = async (fields: Omit<Student, 'id' | 'paid' | 'due' | 'joinDate'> & { id?: number; paid?: number; due?: number; joinDate?: string }) => {
-    if (fields.id) {
+    const existing = fields.id ? students.find(s => s.id === fields.id) : undefined;
+    if (fields.id && existing) {
       // Edit mode!
       const finalPayable = fields.finalPayableAmount !== undefined ? fields.finalPayableAmount : fields.fee;
-      const existing = students.find(s => s.id === fields.id);
       const updatedStudent: Student = {
-        ...(existing || {}),
+        ...existing,
         ...fields,
-        due: Math.max(0, finalPayable - ((existing?.paid) || fields.paid || 0))
+        due: Math.max(0, finalPayable - (existing.paid || fields.paid || 0))
       } as Student;
 
       const updated = students.map(s => s.id === fields.id ? updatedStudent : s);
@@ -939,12 +991,14 @@ export default function App() {
         showToast(`Saved locally! (Firebase sync pending: ${e?.message || 'network'}) ⚠️`, true);
       }
     } else {
-      // Add mode!
-      const defaultDue = fields.finalPayableAmount !== undefined ? fields.finalPayableAmount : fields.fee;
+      // Add mode! (Handles both Warden manual entry and Student online self-registration)
+      const defaultDue = fields.due !== undefined 
+        ? fields.due 
+        : (fields.finalPayableAmount !== undefined ? fields.finalPayableAmount : fields.fee);
       const freshStudent: Student = {
         ...fields,
         id: fields.id || Date.now(),
-        paid: 0,
+        paid: fields.paid || 0,
         due: defaultDue,
         joinDate: fields.joinDate || new Date().toLocaleDateString('en-IN')
       } as Student;
@@ -961,6 +1015,39 @@ export default function App() {
         showToast(`Saved locally! (Firebase sync pending: ${e?.message || 'network'}) ⚠️`, true);
       }
     }
+  };
+
+  // --- DIRECT ROOM ALLOTMENT FROM MASTER PANEL ROOMS MAP ---
+  const handleAssignStudentToRoom = async (studentId: number, roomNum: string, floor: string, bedNumber?: string) => {
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    const updatedStudent: Student = {
+      ...student,
+      room: roomNum,
+      floor: floor || student.floor || (roomNum.startsWith('1') ? 'Ground' : roomNum.startsWith('2') ? 'First' : 'Second'),
+      bedNumber: bedNumber || student.bedNumber || 'A'
+    };
+
+    const updated = students.map(s => s.id === studentId ? updatedStudent : s);
+    setStudents(updated);
+    safeStorage.setItem('ubh_students', JSON.stringify(updated));
+    showToast(`Room ${roomNum} (Bed ${updatedStudent.bedNumber}) successfully allotted to ${student.name}! 🛏️✅`);
+
+    try {
+      await saveDocument('students', updatedStudent.id, updatedStudent);
+    } catch (e: any) {
+      console.error('Error saving allotted student to Firebase:', e);
+    }
+  };
+
+  const handleOpenAddStudentWithRoom = (roomNum: string, floor: string) => {
+    setStudentToEdit({
+      room: roomNum,
+      floor: floor || (roomNum.startsWith('1') ? 'Ground' : roomNum.startsWith('2') ? 'First' : 'Second'),
+      status: 'Active'
+    } as any);
+    setIsStudentModalOpen(true);
   };
 
   // --- ELECTRICITY METER READING AGENT ---
@@ -1532,6 +1619,12 @@ export default function App() {
           {curTab === 'rooms' && (
             <RoomManagement
               students={students}
+              onAssignStudentToRoom={handleAssignStudentToRoom}
+              onOpenAddStudentWithRoom={handleOpenAddStudentWithRoom}
+              onEditStudent={(s) => {
+                setStudentToEdit(s);
+                setIsStudentModalOpen(true);
+              }}
             />
           )}
 
