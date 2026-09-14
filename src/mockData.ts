@@ -222,7 +222,7 @@ export const DEFAULT_SETTINGS: HostelSettings = {
   email: "unityhosteljpr@gmail.com",
   upi: "gpay-12189467181@okbizaxis",
   lateFee: 50,
-  totalBeds: 100,
+  totalBeds: 93,
   singleRent: 8500,
   doubleRent: 6500,
   tripleRent: 5500,
@@ -245,7 +245,7 @@ export const DEFAULT_SETTINGS: HostelSettings = {
   adBannerPdfName: '',
   adBannerText: '',
   masterUsername: 'admin',
-  masterPassword: 'admin123',
+  masterPassword: 'admin2024',
   staffUsername: 'staff',
   staffPassword: 'staff123',
   recoveryKey: 'A040619932024Z'

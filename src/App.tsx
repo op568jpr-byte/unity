@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { 
   Building2, Users, IndianRupee, MapPin, 
-  Phone, Globe, Info, Compass, ShieldAlert, Sparkles, Check, FileText, Download, Printer
+  Phone, Globe, Info, Compass, ShieldAlert, Sparkles, Check, FileText, Download, Printer, PenSquare
 } from 'lucide-react';
 import { downloadBase64File, printBase64File } from './utils/download';
 import { 
@@ -218,15 +218,17 @@ export default function App() {
           let hasNew = false;
           const merged = [...prev];
           for (const sub of json.submissions) {
-            const exists = merged.some(s => s.id === sub.id || (s.mobile && s.mobile === sub.mobile && s.name === sub.name));
-            if (!exists) {
+            const existsIndex = merged.findIndex(s => s.id === sub.id || (s.mobile && s.mobile === sub.mobile && s.name === sub.name));
+            if (existsIndex === -1) {
               merged.unshift(sub);
               hasNew = true;
+              // Proactively write to Firestore so it never relies solely on container disk
+              saveDocument('students', sub.id, sub).catch(console.warn);
             }
           }
           if (hasNew) {
             safeStorage.setItem('ubh_students', JSON.stringify(merged));
-            showToast(`Received ${json.submissions.length} online admissions from hostel server! 📋⚡`);
+            showToast(`Received online admission records! 📋⚡`);
           }
           return merged;
         });
@@ -255,11 +257,41 @@ export default function App() {
           let combined = data;
           if (cached) {
             try {
-              const parsed = JSON.parse(cached);
+              const parsed: Student[] = JSON.parse(cached);
               if (Array.isArray(parsed) && parsed.length > 0) {
+                // Smart merge: Never overwrite a local room allotment with cloud "Unassigned"
+                combined = data.map(d => {
+                  const local = parsed.find(p => p.id === d.id);
+                  if (!local) return d;
+
+                  const localHasRoom = local.room && local.room !== 'Unassigned' && local.room !== 'Pending';
+                  const cloudHasNoRoom = !d.room || d.room === 'Unassigned' || d.room === 'Pending';
+
+                  if (localHasRoom && cloudHasNoRoom) {
+                    // Proactively push the room allotment to cloud to keep Firestore in sync
+                    const preserved = {
+                      ...d,
+                      room: local.room,
+                      floor: local.floor || d.floor || '',
+                      bedNumber: local.bedNumber || d.bedNumber || 'A',
+                      updatedAt: Date.now()
+                    };
+                    saveDocument('students', local.id, preserved).catch(console.error);
+                    return preserved;
+                  }
+
+                  // If local has newer timestamp, keep local
+                  if ((local as any).updatedAt && (d as any).updatedAt && (local as any).updatedAt > (d as any).updatedAt) {
+                    return local;
+                  }
+
+                  return d;
+                });
+
+                // Also preserve any local-only students not yet received in this cloud snapshot
                 const localOnly = parsed.filter(p => !data.some(d => d.id === p.id));
                 if (localOnly.length > 0) {
-                  combined = [...data, ...localOnly];
+                  combined = [...combined, ...localOnly];
                 }
               }
             } catch (e) {}
@@ -422,7 +454,7 @@ export default function App() {
 
         const effectiveTotalBeds = (typeof data?.totalBeds === 'number' && data.totalBeds > 0)
           ? data.totalBeds
-          : ((typeof cachedObj.totalBeds === 'number' && cachedObj.totalBeds > 0) ? cachedObj.totalBeds : 100);
+          : ((typeof cachedObj.totalBeds === 'number' && cachedObj.totalBeds > 0) ? cachedObj.totalBeds : 93);
 
         const merged: HostelSettings = {
           ...DEFAULT_SETTINGS,
@@ -430,7 +462,7 @@ export default function App() {
           ...data,
           totalBeds: effectiveTotalBeds,
           masterUsername: data?.masterUsername || cachedObj.masterUsername || masterU || 'admin',
-          masterPassword: data?.masterPassword || cachedObj.masterPassword || masterP || 'admin123',
+          masterPassword: data?.masterPassword || cachedObj.masterPassword || masterP || 'admin2024',
           staffUsername: data?.staffUsername || cachedObj.staffUsername || staffU || 'staff',
           staffPassword: data?.staffPassword || cachedObj.staffPassword || staffP || 'staff123',
           recoveryKey: data?.recoveryKey || cachedObj.recoveryKey || recKey || 'A040619932024Z',
@@ -447,24 +479,19 @@ export default function App() {
       DEFAULT_SETTINGS
     );
 
-    // Synchronize central credentials from server (ensures mobile & desktop always match)
+    // Synchronize central credentials from server (only fallback if not already loaded from cloud)
     fetch('/api/credentials')
       .then(r => r.json())
       .then(res => {
         if (res && res.success && res.credentials) {
           const c = res.credentials;
-          if (c.masterUsername) safeStorage.setItem('ubh_creds_master_u', c.masterUsername);
-          if (c.masterPassword) safeStorage.setItem('ubh_creds_master_p', c.masterPassword);
-          if (c.staffUsername) safeStorage.setItem('ubh_creds_staff_u', c.staffUsername);
-          if (c.staffPassword) safeStorage.setItem('ubh_creds_staff_p', c.staffPassword);
-          if (c.recoveryKey) safeStorage.setItem('ubh_creds_recovery_key', c.recoveryKey);
           setSettings(prev => ({
             ...prev,
-            masterUsername: c.masterUsername || prev.masterUsername,
-            masterPassword: c.masterPassword || prev.masterPassword,
-            staffUsername: c.staffUsername || prev.staffUsername,
-            staffPassword: c.staffPassword || prev.staffPassword,
-            recoveryKey: c.recoveryKey || prev.recoveryKey
+            masterUsername: prev.masterUsername || c.masterUsername || 'admin',
+            masterPassword: prev.masterPassword || c.masterPassword || 'admin2024',
+            staffUsername: prev.staffUsername || c.staffUsername || 'staff',
+            staffPassword: prev.staffPassword || c.staffPassword || 'staff123',
+            recoveryKey: prev.recoveryKey || c.recoveryKey || 'A040619932024Z'
           }));
         }
       })
@@ -758,17 +785,15 @@ export default function App() {
     setStudents(updated);
     safeStorage.setItem('ubh_students', JSON.stringify(updated));
     try {
-      const deleted = students.filter(s => !updated.some(u => u.id === s.id));
+      // ONLY save new or updated students. NEVER automatically delete missing students here!
+      // This prevents accidental deletion of students caused by race conditions or partial lists.
       const addedOrUpdated = updated.filter(u => {
         const existing = students.find(s => s.id === u.id);
         return !existing || JSON.stringify(existing) !== JSON.stringify(u);
       });
 
-      for (const s of deleted) {
-        await deleteDocument('students', s.id);
-      }
       for (const s of addedOrUpdated) {
-        await saveDocument('students', s.id, s);
+        await saveDocument('students', s.id, { ...s, updatedAt: s.updatedAt || Date.now() });
       }
     } catch (e) {
       console.error('Error syncing students with Firebase:', e);
@@ -1049,7 +1074,9 @@ export default function App() {
       ...student,
       room: roomNum,
       floor: floor || student.floor || (roomNum.startsWith('1') ? 'Ground' : roomNum.startsWith('2') ? 'First' : 'Second'),
-      bedNumber: bedNumber || student.bedNumber || 'A'
+      bedNumber: bedNumber || student.bedNumber || 'A',
+      status: 'Active',
+      updatedAt: Date.now()
     };
 
     const updated = students.map(s => s.id === studentId ? updatedStudent : s);
@@ -1126,8 +1153,16 @@ export default function App() {
       console.error('Error saving deleted student log:', err);
     }
 
+    // Explicitly delete from Firestore
+    try {
+      await deleteDocument('students', id);
+    } catch (err) {
+      console.error('Error deleting student from Firestore:', err);
+    }
+
     const newArr = students.filter(s => s.id !== id);
-    handleStudentsUpdate(newArr);
+    setStudents(newArr);
+    safeStorage.setItem('ubh_students', JSON.stringify(newArr));
     
     showToast(`Removed registration file for ${studentName}. 🗑️`);
   };
@@ -1352,9 +1387,9 @@ export default function App() {
     const finalSettings: HostelSettings = {
       ...settings,
       ...updated,
-      totalBeds: typeof updated.totalBeds === 'number' && updated.totalBeds > 0 ? updated.totalBeds : (settings.totalBeds || 100),
+      totalBeds: typeof updated.totalBeds === 'number' && updated.totalBeds > 0 ? updated.totalBeds : (settings.totalBeds || 93),
       masterUsername: updated.masterUsername || settings.masterUsername || safeStorage.getItem('ubh_creds_master_u') || 'admin',
-      masterPassword: updated.masterPassword || settings.masterPassword || safeStorage.getItem('ubh_creds_master_p') || 'admin123',
+      masterPassword: updated.masterPassword || settings.masterPassword || safeStorage.getItem('ubh_creds_master_p') || 'admin2024',
       staffUsername: updated.staffUsername || settings.staffUsername || safeStorage.getItem('ubh_creds_staff_u') || 'staff',
       staffPassword: updated.staffPassword || settings.staffPassword || safeStorage.getItem('ubh_creds_staff_p') || 'staff123',
       recoveryKey: updated.recoveryKey || settings.recoveryKey || safeStorage.getItem('ubh_creds_recovery_key') || 'A040619932024Z',
@@ -1990,7 +2025,7 @@ export default function App() {
                             <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.hostelForm && selectedViewStudent.hostelForm.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.hostelForm && selectedViewStudent.hostelForm.startsWith('data:') ? 'green' : '#666'};">Hostel Registration: ${selectedViewStudent.hostelForm && selectedViewStudent.hostelForm.startsWith('data:') ? '✓ Uploaded' : '✗ Pending'}</div>
                             <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.agreementDoc && selectedViewStudent.agreementDoc.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.agreementDoc && selectedViewStudent.agreementDoc.startsWith('data:') ? 'green' : '#666'};">Lease Agreement: ${selectedViewStudent.agreementDoc && selectedViewStudent.agreementDoc.startsWith('data:') ? '✓ Uploaded' : '✗ Pending'}</div>
                             <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${((selectedViewStudent.studentAadhaarDocFront && selectedViewStudent.studentAadhaarDocFront.startsWith('data:')) || (selectedViewStudent.studentAadhaarDoc && selectedViewStudent.studentAadhaarDoc.startsWith('data:'))) ? '#EEFBF7' : '#F9FAFB'}; color:${((selectedViewStudent.studentAadhaarDocFront && selectedViewStudent.studentAadhaarDocFront.startsWith('data:')) || (selectedViewStudent.studentAadhaarDoc && selectedViewStudent.studentAadhaarDoc.startsWith('data:'))) ? 'green' : '#666'};">Student Aadhaar (Front): ${((selectedViewStudent.studentAadhaarDocFront && selectedViewStudent.studentAadhaarDocFront.startsWith('data:')) || (selectedViewStudent.studentAadhaarDoc && selectedViewStudent.studentAadhaarDoc.startsWith('data:'))) ? '✓ Uploaded' : '✗ Pending'}</div>
-                            <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.studentAadhaarDocBack && selectedViewStudent.studentAadhaarDocBack.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.studentAadhaarDocBack && selectedViewStudent.studentAadhaarDocBack.startsWith('data:') ? 'green' : '#666'};">Student Aadhaar (Back): ${selectedViewStudent.studentAadhaarDocBack && selectedViewStudent.studentAadhaarDocBack.startsWith('data:') ? '✓ Uploaded' : '✗ Optional / Pending'}</div>
+                            <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.studentAadhaarDocBack && selectedViewStudent.studentAadhaarDocBack.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.studentAadhaarDocBack && selectedViewStudent.studentAadhaarDocBack.startsWith('data:') ? 'green' : '#B91C1C'};">Student Aadhaar (Back) *: ${selectedViewStudent.studentAadhaarDocBack && selectedViewStudent.studentAadhaarDocBack.startsWith('data:') ? '✓ Uploaded' : '✗ Mandatory / Pending'}</div>
                             <div style="padding:5px; border:1px solid #CCC; border-radius:5px; background:${selectedViewStudent.fatherAadhaarDoc && selectedViewStudent.fatherAadhaarDoc.startsWith('data:') ? '#EEFBF7' : '#F9FAFB'}; color:${selectedViewStudent.fatherAadhaarDoc && selectedViewStudent.fatherAadhaarDoc.startsWith('data:') ? 'green' : '#666'};">Parent Aadhaar Card: ${selectedViewStudent.fatherAadhaarDoc && selectedViewStudent.fatherAadhaarDoc.startsWith('data:') ? '✓ Uploaded' : '✗ Pending'}</div>
                           </div>
                         </div>
@@ -2043,6 +2078,19 @@ export default function App() {
               >
                 <Printer className="w-4 h-4" />
                 Print Details + Docs
+              </button>
+
+              <button
+                onClick={() => {
+                  const studentToEditCopy = { ...selectedViewStudent };
+                  setSelectedViewStudent(null);
+                  setStudentToEdit(studentToEditCopy);
+                  setIsStudentModalOpen(true);
+                }}
+                className="px-4 py-2 bg-gradient-to-r from-[#1A1A2E] to-[#0F3460] text-white font-extrabold text-xs rounded-xl shadow-md hover:-translate-y-0.5 transition duration-150 flex items-center gap-2 cursor-pointer"
+              >
+                <PenSquare className="w-4 h-4" />
+                Edit / Assign Room
               </button>
             </div>
 
@@ -2164,56 +2212,100 @@ export default function App() {
               </div>
 
               {/* SECTION 3: CORE EDUCATION & DETAILED ALLOCATION */}
-              {(selectedViewStudent.collegeName || selectedViewStudent.bedNumber) && (
-                <div className="border border-gray-100 rounded-xl p-3.5 bg-white">
-                  <h6 className="font-black text-[11px] text-[#1A1A2E] uppercase tracking-wider mb-2.5 pb-1 border-b border-gray-50">
-                    3. Academic details & Room Allocations
-                  </h6>
-                  <div className="grid grid-cols-2 gap-3">
-                    {selectedViewStudent.floor && (
-                      <div>
-                        <span className="text-gray-400 font-semibold block text-[10px]">Floor Assigned</span>
-                        <span className="font-bold text-gray-800">{selectedViewStudent.floor} Floor</span>
-                      </div>
-                    )}
-                    {selectedViewStudent.bedNumber && (
-                      <div>
-                        <span className="text-gray-400 font-semibold block text-[10px]">Assigned Bed</span>
-                        <span className="font-bold text-gray-800 font-mono">Bed {selectedViewStudent.bedNumber}</span>
-                      </div>
-                    )}
-                    {selectedViewStudent.washroomType && (
-                      <div>
-                        <span className="text-gray-400 font-semibold block text-[10px]">Washroom Type</span>
-                        <span className="font-bold text-gray-800">{selectedViewStudent.washroomType}</span>
-                      </div>
-                    )}
-                    <div></div>
-                    {selectedViewStudent.collegeName && (
-                      <div className="col-span-2 pt-2 border-t border-dashed border-gray-100">
-                        <span className="text-gray-400 font-semibold block text-[10px]">College Name & Course</span>
-                        <p className="font-bold text-gray-850 text-xs mt-0.5">{selectedViewStudent.collegeName} ({selectedViewStudent.courseName || 'N/A'})</p>
-                        <span className="text-[10px] text-gray-500 block">Sem: {selectedViewStudent.semesterYear || 'N/A'} | ID: {selectedViewStudent.collegeId || 'N/A'}</span>
-                      </div>
-                    )}
+              <div className="border border-gray-100 rounded-xl p-3.5 bg-white">
+                <h6 className="font-black text-[11px] text-[#1A1A2E] uppercase tracking-wider mb-2.5 pb-1 border-b border-gray-50 flex items-center justify-between">
+                  <span>3. Academic Details & Room Allocations</span>
+                  <span className="text-[9px] font-black uppercase text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                    🏢 Room Allotment Highlight
+                  </span>
+                </h6>
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Highlighted Room Number in its place */}
+                  <div className="p-2.5 bg-amber-50/90 border-2 border-amber-300 rounded-xl">
+                    <span className="text-amber-800 font-extrabold block text-[10px] uppercase">🏢 Assigned Room Number</span>
+                    <span className={`text-base font-black font-mono block mt-0.5 ${selectedViewStudent.room && selectedViewStudent.room !== 'Unassigned' && selectedViewStudent.room !== 'Pending' ? 'text-gray-900' : 'text-amber-700'}`}>
+                      {selectedViewStudent.room && selectedViewStudent.room !== 'Unassigned' && selectedViewStudent.room !== 'Pending' ? `Room ${selectedViewStudent.room}` : '⚠️ Unassigned'}
+                    </span>
+                    <span className="text-[9px] text-amber-700 font-bold block mt-0.5">कमरा संख्या आवंटन</span>
                   </div>
+
+                  {/* Bed and Sharing */}
+                  <div className="p-2.5 bg-amber-50/50 border border-amber-200 rounded-xl">
+                    <span className="text-amber-800 font-extrabold block text-[10px] uppercase">🛏️ Bed & Sharing</span>
+                    <span className="text-sm font-black text-gray-900 font-mono block mt-0.5">
+                      {selectedViewStudent.bedNumber ? `Bed ${selectedViewStudent.bedNumber}` : 'Bed: Standard'} ({selectedViewStudent.sharing} Sharing)
+                    </span>
+                    <span className="text-[9px] text-gray-500 block mt-0.5">{selectedViewStudent.floor ? `${selectedViewStudent.floor} Floor` : 'Floor Assigned'}</span>
+                  </div>
+
+                  {selectedViewStudent.washroomType && (
+                    <div>
+                      <span className="text-gray-400 font-semibold block text-[10px]">Washroom Type</span>
+                      <span className="font-bold text-gray-800">{selectedViewStudent.washroomType}</span>
+                    </div>
+                  )}
+                  {selectedViewStudent.acType && (
+                    <div>
+                      <span className="text-gray-400 font-semibold block text-[10px]">Room Cooling</span>
+                      <span className="font-bold text-gray-800">{selectedViewStudent.acType}</span>
+                    </div>
+                  )}
+                  {selectedViewStudent.collegeName && (
+                    <div className="col-span-2 pt-2 border-t border-dashed border-gray-100">
+                      <span className="text-gray-400 font-semibold block text-[10px]">College Name & Course</span>
+                      <p className="font-bold text-gray-850 text-xs mt-0.5">{selectedViewStudent.collegeName} ({selectedViewStudent.courseName || 'N/A'})</p>
+                      <span className="text-[10px] text-gray-500 block">Sem: {selectedViewStudent.semesterYear || 'N/A'} | ID: {selectedViewStudent.collegeId || 'N/A'}</span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* SECTION 4: STAY & FINANCIAL BREAKDOWN ADMISSION DETAILS */}
               <div className="border border-gray-100 rounded-xl p-3.5 bg-white">
-                <h6 className="font-black text-[11px] text-[#1A1A2E] uppercase tracking-wider mb-2.5 pb-1 border-b border-gray-50">
-                  4. Stay Terms & Billing Calculations
+                <h6 className="font-black text-[11px] text-[#1A1A2E] uppercase tracking-wider mb-2.5 pb-1 border-b border-gray-50 flex items-center justify-between">
+                  <span>4. Stay Terms & Billing Calculations</span>
+                  <span className="text-[9px] font-black uppercase text-indigo-800 bg-indigo-100 px-2 py-0.5 rounded border border-indigo-300">
+                    📅 Agreement & Security Highlights
+                  </span>
                 </h6>
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  {selectedViewStudent.agreementStartDate && (
-                    <div>
-                      <span className="text-gray-400 font-semibold block text-[9px] uppercase">Agreement Period</span>
-                      <span className="font-bold text-gray-800">{selectedViewStudent.agreementStartDate} to {selectedViewStudent.agreementEndDate || 'N/A'}</span>
+                  {/* Highlighted Agreement Period in its place */}
+                  <div className="col-span-2 sm:col-span-1 p-2.5 bg-indigo-50/80 border-2 border-indigo-300 rounded-xl">
+                    <span className="text-indigo-800 font-extrabold block text-[10px] uppercase">📅 Agreement Period (अनुबंध तारीख)</span>
+                    <div className="text-xs font-black text-gray-900 font-mono mt-0.5">
+                      {selectedViewStudent.agreementStartDate ? selectedViewStudent.agreementStartDate : '⚠️ Start Date Pending'}
                     </div>
-                  )}
+                    <span className="text-[9px] text-gray-500 block mt-0.5">
+                      End: {selectedViewStudent.agreementEndDate || 'Not set'}
+                    </span>
+                  </div>
+
+                  {/* Highlighted Security Deposit in its place */}
+                  <div className="col-span-2 sm:col-span-1 p-2.5 bg-orange-50/90 border-2 border-orange-400 rounded-xl">
+                    <span className="text-[#FF6B35] font-extrabold block text-[10px] uppercase">🛡️ Security Amount (धरोहर राशि)</span>
+                    <span className="text-sm sm:text-base font-black text-gray-900 font-mono block mt-0.5">
+                      ₹{(selectedViewStudent.securityDeposit || 0).toLocaleString('en-IN')}
+                    </span>
+                    <span className="text-[9px] text-orange-700 block mt-0.5">धरोहर राशि (Refundable)</span>
+                  </div>
+
+                  {/* Highlighted Registration Status in its place */}
+                  <div className="col-span-2 sm:col-span-1 p-2.5 bg-emerald-50/80 border-2 border-emerald-300 rounded-xl">
+                    <span className="text-emerald-800 font-extrabold block text-[10px] uppercase">🏷️ Registration Status (एडमिशन स्थिति)</span>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase ${
+                        selectedViewStudent.status === 'Active' ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' :
+                        selectedViewStudent.status === 'Notice' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+                        'bg-rose-100 text-rose-800 border border-rose-300'
+                      }`}>
+                        {selectedViewStudent.status || 'Active'}
+                      </span>
+                    </div>
+                    <span className="text-[9px] text-emerald-700 block mt-0.5">प्रवेश स्थिति (Current Status)</span>
+                  </div>
+
                   {selectedViewStudent.noticePeriod && (
-                    <div>
+                    <div className="col-span-2 sm:col-span-1 p-2.5 bg-gray-50 border border-gray-200 rounded-xl">
                       <span className="text-gray-400 font-semibold block text-[9px] uppercase">Notice Period</span>
                       <span className="font-bold text-gray-800">{selectedViewStudent.noticePeriod}</span>
                     </div>
@@ -2336,8 +2428,8 @@ export default function App() {
                     { label: 'Police Verification Form', key: 'policeVerification', file: 'police_verification' },
                     { label: 'Hostel Registration Form', key: 'hostelForm', file: 'hostel_form' },
                     { label: 'Agreement Contract Doc', key: 'agreementDoc', file: 'agreement_contract' },
-                    { label: 'Student Aadhaar (Front Side)', key: 'studentAadhaarDocFront', fallbackKey: 'studentAadhaarDoc', file: 'student_aadhaar_front' },
-                    { label: 'Student Aadhaar (Back Side)', key: 'studentAadhaarDocBack', file: 'student_aadhaar_back' },
+                    { label: 'Student Aadhaar (Front Side) *', key: 'studentAadhaarDocFront', fallbackKey: 'studentAadhaarDoc', file: 'student_aadhaar_front' },
+                    { label: 'Student Aadhaar (Back Side) * [अनिवार्य]', key: 'studentAadhaarDocBack', file: 'student_aadhaar_back' },
                     { label: 'Father / Parent Aadhaar Card', key: 'fatherAadhaarDoc', file: 'father_aadhaar' },
                   ].map(doc => {
                     const rawDoc = (selectedViewStudent as any)[doc.key] || (doc.fallbackKey ? (selectedViewStudent as any)[doc.fallbackKey] : undefined);

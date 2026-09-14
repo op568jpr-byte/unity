@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   User, MapPin, ShieldAlert, GraduationCap, 
   CheckCircle2, Copy, Send, ArrowLeft, Phone, Mail, FileText,
-  Camera, Upload, X, Trash2, Check, RefreshCw, Printer, Download, Eye
+  Camera, Upload, X, Trash2, Check, RefreshCw, Printer, Download, Eye, AlertCircle
 } from 'lucide-react';
 import { Student, RoomSharing, HostelSettings } from '../types';
 import { downloadBase64File, printBase64File } from '../utils/download';
@@ -75,6 +75,7 @@ export default function StudentSelfRegistration({
   onShowToast
 }: StudentSelfRegistrationProps) {
   const [step, setStep] = useState(1);
+  const [highlightField, setHighlightField] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedData, setSubmittedData] = useState<{name: string, mobile: string, date: string, profilePic?: string, fullForm?: any} | null>(null);
 
@@ -2300,7 +2301,7 @@ We've recorded your entry. Your bed will be allocated upon arrival.
                     <div>
                       <div className="flex justify-between items-center mb-1">
                         <span className="font-extrabold text-gray-700 text-xs">4B. Student Aadhaar – BACK SIDE (पीछे का भाग) *</span>
-                        <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending Submission' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-805'}`}>
+                        <span className={`text-[9px] px-2 py-0.5 rounded font-black uppercase ${form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending Submission' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                           {form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending Submission' ? 'Uploaded' : 'Pending'}
                         </span>
                       </div>

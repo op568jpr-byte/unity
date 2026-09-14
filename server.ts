@@ -10,7 +10,7 @@ const CREDS_FILE = path.join(DATA_DIR, 'credentials.json');
 
 const DEFAULT_CREDENTIALS = {
   masterUsername: 'admin',
-  masterPassword: 'admin123',
+  masterPassword: 'admin2024',
   staffUsername: 'staff',
   staffPassword: 'staff123',
   recoveryKey: 'A040619932024Z'

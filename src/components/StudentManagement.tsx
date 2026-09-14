@@ -238,7 +238,7 @@ export default function StudentManagement({
                           <PenSquare className="w-3 h-3 text-amber-700" />
                         </button>
                       ) : (
-                        <span className="px-3 py-1 rounded-lg bg-orange-50 border border-orange-100 text-[#FF6B35]">
+                        <span className="px-3 py-1 rounded-lg bg-yellow-100/80 border border-yellow-300 text-yellow-900 font-black">
                           Room {s.room}
                         </span>
                       )}

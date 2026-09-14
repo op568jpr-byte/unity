@@ -27,27 +27,15 @@ export default function AdminLogin({ onClose, onLoginSuccess, onShowToast, setti
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
   const [generatedOtpHint, setGeneratedOtpHint] = useState<string | null>(null);
 
-  // Synchronize credentials with central server on mount
+  // Synchronize credentials with central server on mount (safe fallback only)
   React.useEffect(() => {
     fetch('/api/credentials')
       .then(res => res.json())
       .then(data => {
         if (data && data.success && data.credentials) {
           const c = data.credentials;
-          if (c.masterUsername) localStorage.setItem('ubh_creds_master_u', c.masterUsername);
-          if (c.masterPassword) localStorage.setItem('ubh_creds_master_p', c.masterPassword);
-          if (c.staffUsername) localStorage.setItem('ubh_creds_staff_u', c.staffUsername);
-          if (c.staffPassword) localStorage.setItem('ubh_creds_staff_p', c.staffPassword);
-          if (c.recoveryKey) localStorage.setItem('ubh_creds_recovery_key', c.recoveryKey);
-          if (settings && onSaveSettings) {
-            onSaveSettings({
-              ...settings,
-              masterUsername: c.masterUsername || settings.masterUsername,
-              masterPassword: c.masterPassword || settings.masterPassword,
-              staffUsername: c.staffUsername || settings.staffUsername,
-              staffPassword: c.staffPassword || settings.staffPassword,
-              recoveryKey: c.recoveryKey || settings.recoveryKey,
-            });
+          if (!settings?.masterPassword && c.masterPassword) {
+            localStorage.setItem('ubh_creds_master_p', c.masterPassword);
           }
         }
       })
@@ -56,7 +44,7 @@ export default function AdminLogin({ onClose, onLoginSuccess, onShowToast, setti
 
   const getStoredCreds = () => {
     const masterU = settings?.masterUsername || localStorage.getItem('ubh_creds_master_u') || 'admin';
-    const masterP = settings?.masterPassword || localStorage.getItem('ubh_creds_master_p') || 'admin123';
+    const masterP = settings?.masterPassword || localStorage.getItem('ubh_creds_master_p') || 'admin2024';
     const staffU = settings?.staffUsername || localStorage.getItem('ubh_creds_staff_u') || 'staff';
     const staffP = settings?.staffPassword || localStorage.getItem('ubh_creds_staff_p') || 'staff123';
     

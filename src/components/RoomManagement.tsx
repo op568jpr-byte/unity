@@ -172,7 +172,7 @@ export default function RoomManagement({
                   </span>
                 </div>
                 <span className="text-xs text-[#D4AF37] font-semibold block mt-0.5">
-                  Occupancy: {selectedRoom.curOccupancy.filter(s => s.status === 'Active').length} / {selectedRoom.capacity} Beds ({selectedRoom.capacity <= selectedRoom.curOccupancy.length ? 'Full' : `${selectedRoom.capacity - selectedRoom.curOccupancy.length} Vacant`})
+                  Occupancy: {selectedRoom.curOccupancy.length} / {selectedRoom.capacity} Beds ({selectedRoom.capacity <= selectedRoom.curOccupancy.length ? 'Full' : `${selectedRoom.capacity - selectedRoom.curOccupancy.length} Vacant`})
                 </span>
               </div>
               <button 

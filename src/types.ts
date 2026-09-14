@@ -1,5 +1,5 @@
 export type RoomSharing = 'Single' | 'Double' | 'Triple';
-export type StudentStatus = 'Active' | 'Notice';
+export type StudentStatus = 'Active' | 'Notice' | 'Left';
 export type PaymentMode = 'Cash' | 'UPI' | 'Bank Transfer';
 export type ComplaintType = 'WiFi' | 'Electricity' | 'Plumbing' | 'Cleaning' | 'Other';
 export type ComplaintPriority = 'Low' | 'Medium' | 'High';
@@ -20,6 +20,7 @@ export interface Student {
   due: number;
   joinDate: string;
   profilePic?: string; // Base64 or image URL
+  updatedAt?: number;
   
   // New Admission fields
   dob?: string;

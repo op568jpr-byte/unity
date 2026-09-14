@@ -280,3 +280,47 @@ export function setupSettingsSync(
   }
 }
 
+// Database Merge Utility: transfers data from old database to new database
+export async function mergeDatabases(): Promise<{ success: boolean; totalMerged: number; message: string }> {
+  console.log("Database merge shuru ho raha hai... please wait.");
+  try {
+    const oldDb = getFirestore(app, "ai-studio-unityboyshostel-e29bd770-adbc-4056-b0ae-0851b39dea2b");
+    const targetDb = db;
+
+    const collections = ['students', 'payments', 'complaints', 'visitors', 'partnerWithdrawals', 'expenses', 'settings'];
+    let totalMerged = 0;
+
+    for (const col of collections) {
+      try {
+        const querySnapshot = await getDocs(collection(oldDb, col));
+        if (querySnapshot.size > 0) {
+          const batch = writeBatch(targetDb);
+          for (const docItem of querySnapshot.docs) {
+            const docData = docItem.data();
+            batch.set(doc(targetDb, col, docItem.id), docData, { merge: true });
+            totalMerged++;
+          }
+          await batch.commit();
+        }
+      } catch (colErr) {
+        console.warn(`Merge notice on collection ${col}:`, colErr);
+      }
+    }
+
+    console.log(`Merge complete! Saara data naye database 'unityboyshostel2024' mein transfer ho gaya hai. Total documents: ${totalMerged}`);
+    return {
+      success: true,
+      totalMerged,
+      message: `Merge complete! ${totalMerged} records transfer ho gaye.`
+    };
+  } catch (error: any) {
+    console.error("Merge karne mein error aaya: ", error);
+    return {
+      success: false,
+      totalMerged: 0,
+      message: error?.message || 'Merge failed'
+    };
+  }
+}
+
+

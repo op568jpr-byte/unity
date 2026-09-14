@@ -40,7 +40,7 @@ export default function DashboardHome({
   const [isCapacityModalOpen, setIsCapacityModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const totalCapacity = typeof settings.totalBeds === 'number' && settings.totalBeds > 0 ? settings.totalBeds : 100;
+  const totalCapacity = typeof settings.totalBeds === 'number' && settings.totalBeds > 0 ? settings.totalBeds : 93;
   const [capacityInput, setCapacityInput] = useState<number>(totalCapacity);
 
   // Keep capacityInput in sync if settings update from cloud
@@ -77,8 +77,8 @@ export default function DashboardHome({
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
   };
 
-  const totalActiveStudents = students.filter(s => s.status === 'Active').length;
-  const occupiedBeds = totalActiveStudents; // 1 active student per assigned occupied bed
+  const totalActiveStudents = students.filter(s => s.status !== 'Left').length;
+  const occupiedBeds = students.filter(s => s.room && s.room !== 'Unassigned' && s.room !== 'Pending' && s.status !== 'Left').length;
   const vacantBeds = Math.max(0, totalCapacity - occupiedBeds);
 
   const handleSaveCapacity = (e: React.FormEvent) => {

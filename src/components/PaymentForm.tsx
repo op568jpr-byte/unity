@@ -260,8 +260,13 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
           <input
             type="number"
             required
-            value={amount}
-            onChange={e => setAmount(parseInt(e.target.value) || 0)}
+            value={amount === 0 ? '' : amount}
+            placeholder="0"
+            onFocus={e => e.target.select()}
+            onChange={e => {
+              const val = e.target.value.trim();
+              setAmount(val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0));
+            }}
             className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white font-bold text-emerald-600 text-sm"
           />
         </div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Student, RoomSharing, StudentStatus } from '../types';
-import { User, MapPin, ShieldAlert, BookOpen, GraduationCap, DollarSign, Calendar, Landmark, CreditCard, ChevronRight, ChevronLeft, Camera, Upload, Trash2, Check, RefreshCw, X, FileSpreadsheet, FileText, Printer } from 'lucide-react';
+import { User, MapPin, ShieldAlert, BookOpen, GraduationCap, DollarSign, Calendar, Landmark, CreditCard, ChevronRight, ChevronLeft, Camera, Upload, Trash2, Check, RefreshCw, X, FileSpreadsheet, FileText, Printer, AlertCircle } from 'lucide-react';
 import { printBase64File } from '../utils/download';
 import { compressImageFile } from '../utils/imageCompressor';
 
@@ -61,6 +61,7 @@ interface StudentFormProps {
 export default function StudentForm({ onSubmit, onCancel, onShowToast, studentToEdit }: StudentFormProps) {
   const [step, setStep] = useState(1);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [highlightField, setHighlightField] = useState<string | null>(null);
   
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -159,7 +160,7 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
       if (onShowToast) onShowToast("Compressing & loading document... 📂");
 
       try {
-        const compressed = await compressImageFile(file, 800, 800, 0.65);
+        const compressed = await compressImageFile(file, 520, 520, 0.5);
         setForm((prev: any) => {
           const updates: any = { [fieldName]: compressed };
           if (fieldName === 'studentAadhaarDocFront') {
@@ -167,10 +168,11 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
           }
           return { ...prev, ...updates };
         });
+        setHighlightField(null);
         if (onShowToast) onShowToast("Document optimized & attached! 📂✅");
       } catch (err) {
         try {
-          const fallback = await compressImageFile(file, 600, 600, 0.5);
+          const fallback = await compressImageFile(file, 450, 450, 0.45);
           setForm((prev: any) => {
             const updates: any = { [fieldName]: fallback };
             if (fieldName === 'studentAadhaarDocFront') {
@@ -178,6 +180,7 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
             }
             return { ...prev, ...updates };
           });
+          setHighlightField(null);
           if (onShowToast) onShowToast("Document compressed & attached! 📂✅");
         } catch (e) {
           console.error(e);
@@ -488,31 +491,38 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
       const hasFrontAadhaar = (form.studentAadhaarDocFront && form.studentAadhaarDocFront !== 'Pending' && form.studentAadhaarDocFront !== 'Pending Submission') ||
                               (form.studentAadhaarDoc && form.studentAadhaarDoc !== 'Pending' && form.studentAadhaarDoc !== 'Pending Submission');
       if (!hasFrontAadhaar) {
-        const msg = 'Student Aadhaar Card Front Side (आगे का भाग) upload or status selection is mandatory! 💳⚠️';
-        setErrorMsg(msg);
-        if (onShowToast) onShowToast(msg, true);
+        setHighlightField('studentAadhaarDocFront');
+        if (onShowToast) onShowToast('Student Aadhaar Card Front Side (आगे का भाग) upload is mandatory! 💳⚠️', true);
+        setTimeout(() => {
+          document.getElementById('field-aadhaar-front')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
         return;
       }
       const hasBackAadhaar = form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending' && form.studentAadhaarDocBack !== 'Pending Submission' && form.studentAadhaarDocBack !== 'Not Provided';
       if (!hasBackAadhaar) {
-        const msg = 'Student Aadhaar Card Back Side (पीछे का भाग) upload or status selection is mandatory! 💳⚠️';
-        setErrorMsg(msg);
-        if (onShowToast) onShowToast(msg, true);
+        setHighlightField('studentAadhaarDocBack');
+        if (onShowToast) onShowToast('Student Aadhaar Card Back Side (पीछे का भाग) upload is mandatory! 💳⚠️', true);
+        setTimeout(() => {
+          document.getElementById('field-aadhaar-back')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
         return;
       }
       // Father's Aadhaar is optional
+      setHighlightField(null);
     }
     setStep(prev => Math.min(prev + 1, 6));
   };
 
   const prevStep = () => {
     setErrorMsg(null);
+    setHighlightField(null);
     setStep(prev => Math.max(prev - 1, 1));
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setHighlightField(null);
 
     // Dynamic checks on submit to prevent silent validation blocks and direct the user to the correct step
     if (!form.name || !form.name.trim()) {
@@ -564,19 +574,23 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
     const hasFrontAadhaar = (form.studentAadhaarDocFront && form.studentAadhaarDocFront !== 'Pending' && form.studentAadhaarDocFront !== 'Pending Submission') ||
                             (form.studentAadhaarDoc && form.studentAadhaarDoc !== 'Pending' && form.studentAadhaarDoc !== 'Pending Submission');
     if (!hasFrontAadhaar) {
-      const msg = 'Student Aadhaar Card Front Side (आगे का भाग) upload or status selection is mandatory! (Step 5) 💳⚠️';
-      setErrorMsg(msg);
       setStep(5);
-      if (onShowToast) onShowToast(msg, true);
+      setHighlightField('studentAadhaarDocFront');
+      if (onShowToast) onShowToast('Student Aadhaar Card Front Side (आगे का भाग) upload is mandatory! 💳⚠️', true);
+      setTimeout(() => {
+        document.getElementById('field-aadhaar-front')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
       return;
     }
 
     const hasBackAadhaar = form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Pending' && form.studentAadhaarDocBack !== 'Pending Submission' && form.studentAadhaarDocBack !== 'Not Provided';
     if (!hasBackAadhaar) {
-      const msg = 'Student Aadhaar Card Back Side (पीछे का भाग) upload or status selection is mandatory! (Step 5) 💳⚠️';
-      setErrorMsg(msg);
       setStep(5);
-      if (onShowToast) onShowToast(msg, true);
+      setHighlightField('studentAadhaarDocBack');
+      if (onShowToast) onShowToast('Student Aadhaar Card Back Side (पीछे का भाग) upload is mandatory! 💳⚠️', true);
+      setTimeout(() => {
+        document.getElementById('field-aadhaar-back')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
       return;
     }
 
@@ -598,12 +612,23 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
           <span>{form.id ? 'UNITY BOYS HOSTEL – EDIT PROFILE' : 'UNITY BOYS HOSTEL – NEW ADMISSION'}</span>
         </h4>
         <div className="flex flex-wrap items-center gap-1 sm:gap-1.5 font-mono text-[9px] sm:text-[10px] md:text-xs">
-          <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md font-bold transition-all ${step === 1 ? 'bg-[#FF6B35] text-white' : 'bg-gray-100 text-gray-400'}`}>1. Basic</span>
-          <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md font-bold transition-all ${step === 2 ? 'bg-[#FF6B35] text-white' : 'bg-gray-100 text-gray-400'}`}>2. Family</span>
-          <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md font-bold transition-all ${step === 3 ? 'bg-[#FF6B35] text-white' : 'bg-gray-100 text-gray-400'}`}>3. Hostel</span>
-          <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md font-bold transition-all ${step === 4 ? 'bg-[#FF6B35] text-white' : 'bg-gray-100 text-gray-400'}`}>4. Stay</span>
-          <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md font-bold transition-all ${step === 5 ? 'bg-[#FF6B35] text-white' : 'bg-gray-100 text-gray-400'}`}>5. Rent & Docs</span>
-          <span className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md font-bold transition-all ${step === 6 ? 'bg-[#FF6B35] text-white' : 'bg-gray-100 text-gray-400'}`}>6. Review</span>
+          {[
+            { s: 1, label: '1. Basic' },
+            { s: 2, label: '2. Family' },
+            { s: 3, label: '3. Hostel (Room)' },
+            { s: 4, label: '4. Stay & Terms' },
+            { s: 5, label: '5. Rent & Docs' },
+            { s: 6, label: '6. Review' }
+          ].map(item => (
+            <button
+              key={item.s}
+              type="button"
+              onClick={() => setStep(item.s)}
+              className={`px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-md font-bold transition-all cursor-pointer ${step === item.s ? 'bg-[#FF6B35] text-white shadow-xs' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -1141,14 +1166,14 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                   <option value="Third">Third Floor</option>
                 </select>
               </div>
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Room Number *</label>
+              <div className="p-2.5 bg-yellow-50/90 border-2 border-yellow-400 rounded-xl shadow-xs">
+                <label className="block text-[10px] font-bold text-yellow-900 mb-1">Room Number *</label>
                 <input
                   type="text"
-                  placeholder="e.g. 104, 201"
+                  placeholder="e.g. 104"
                   value={form.room}
                   onChange={e => setForm({ ...form, room: e.target.value.toUpperCase() })}
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white font-mono"
+                  className="w-full px-3.5 py-2.5 border border-yellow-300 rounded-xl focus:border-yellow-500 outline-none transition bg-white font-mono font-bold text-gray-800"
                 />
               </div>
               <div>
@@ -1209,24 +1234,36 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
               <Calendar className="w-4 h-4" /> 6. Stay Details & Fee Plan Selection
             </h5>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Agreement Start Date</label>
-                <input
-                  type="date"
-                  value={form.agreementStartDate}
-                  onChange={e => setForm({ ...form, agreementStartDate: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white"
-                />
+            {/* HIGHLIGHTED KEY FIELD: AGREEMENT DATES */}
+            <div className="p-3.5 bg-indigo-50/80 border-2 border-indigo-400 rounded-2xl shadow-xs">
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[10px] font-black text-indigo-900 uppercase tracking-wide flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5 text-indigo-600" />
+                  📅 Agreement Period (अनुबंध तारीख) *
+                </label>
+                <span className="text-[9px] font-extrabold bg-indigo-200 text-indigo-900 px-2 py-0.5 rounded">
+                  ★ Key Field
+                </span>
               </div>
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Agreement End Date</label>
-                <input
-                  type="date"
-                  value={form.agreementEndDate}
-                  onChange={e => setForm({ ...form, agreementEndDate: e.target.value })}
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-indigo-800 mb-1">Agreement Start Date (अनुबंध शुरू)</label>
+                  <input
+                    type="date"
+                    value={form.agreementStartDate}
+                    onChange={e => setForm({ ...form, agreementStartDate: e.target.value })}
+                    className="w-full px-3.5 py-2.5 border-2 border-indigo-300 focus:border-indigo-600 rounded-xl outline-none transition bg-white font-bold text-gray-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-indigo-800 mb-1">Agreement End Date (अनुबंध समाप्ति)</label>
+                  <input
+                    type="date"
+                    value={form.agreementEndDate}
+                    onChange={e => setForm({ ...form, agreementEndDate: e.target.value })}
+                    className="w-full px-3.5 py-2.5 border-2 border-indigo-300 focus:border-indigo-600 rounded-xl outline-none transition bg-white font-bold text-gray-800"
+                  />
+                </div>
               </div>
             </div>
 
@@ -1251,16 +1288,26 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                   className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none transition bg-white"
                 />
               </div>
-              <div>
-                <label className="block text-[10px] font-semibold text-gray-500 mb-1">Registration Status</label>
+
+              {/* HIGHLIGHTED KEY FIELD: REGISTRATION STATUS */}
+              <div className="p-3 bg-emerald-50/80 border-2 border-emerald-400 rounded-2xl shadow-xs">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-black text-emerald-900 uppercase tracking-wide">
+                    🏷️ Registration Status *
+                  </label>
+                  <span className="text-[9px] font-extrabold bg-emerald-200 text-emerald-900 px-1.5 py-0.5 rounded">
+                    ★ Key Field
+                  </span>
+                </div>
                 <select
                   value={form.status}
                   onChange={e => setForm({ ...form, status: e.target.value as StudentStatus })}
-                  className="w-full px-3.5 py-2.5 border border-gray-200 rounded-xl focus:border-[#FF6B35] outline-none bg-white cursor-pointer font-bold text-gray-700"
+                  className="w-full px-3 py-2 border-2 border-emerald-300 focus:border-emerald-600 rounded-xl outline-none bg-white cursor-pointer font-black text-emerald-900 text-xs sm:text-sm"
                 >
-                  <option value="Active">Active Student</option>
-                  <option value="Notice">Notice Serving</option>
+                  <option value="Active">Active Student (सक्रिय)</option>
+                  <option value="Notice">Notice Serving (नोटिस)</option>
                 </select>
+                <span className="text-[9px] text-emerald-700 font-bold block mt-1">एडमिशन एवं हॉस्टल स्थिति</span>
               </div>
             </div>
 
@@ -1278,13 +1325,14 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                   </label>
                   <input
                     type="number"
-                    value={form.yearlyTotalFee || 0}
+                    value={form.yearlyTotalFee === 0 ? '' : form.yearlyTotalFee}
+                    onFocus={e => e.target.select()}
                     onChange={e => {
-                      const val = Math.max(0, parseInt(e.target.value) || 0);
-                      setForm({ ...form, yearlyTotalFee: val });
+                      const val = e.target.value.trim();
+                      setForm({ ...form, yearlyTotalFee: val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0) });
                     }}
                     className="w-full px-3 py-2 border border-orange-200 focus:border-[#FF6B35] rounded-xl outline-none font-extrabold text-[#1A1A2E] bg-white text-xs sm:text-sm"
-                    placeholder="e.g. 90000"
+                    placeholder="0"
                   />
                   <span className="text-[9px] text-[#FF6B35] font-bold leading-none block mt-1">Total contract fee expected from student</span>
                 </div>
@@ -1332,41 +1380,72 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
               </div>
 
               {/* Allied Stay Charges Breakdown */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs pt-2">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 mb-0.5">Special Discount (₹)</label>
                   <input
                     type="number"
-                    value={form.discount}
-                    onChange={e => setForm({ ...form, discount: Math.max(0, parseInt(e.target.value) || 0) })}
+                    value={form.discount === 0 ? '' : form.discount}
+                    onFocus={e => e.target.select()}
+                    onChange={e => {
+                      const val = e.target.value.trim();
+                      setForm({ ...form, discount: val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0) });
+                    }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none font-bold text-rose-500 bg-white"
+                    placeholder="0"
                   />
                 </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-gray-400 mb-0.5">Security Deposit (Refundable) (₹)</label>
+
+                {/* HIGHLIGHTED KEY FIELD: SECURITY AMOUNT */}
+                <div className="p-2.5 bg-orange-50/90 border-2 border-orange-400 rounded-xl shadow-xs sm:col-span-1">
+                  <div className="flex items-center justify-between mb-0.5">
+                    <label className="block text-[10px] font-black text-orange-950 uppercase tracking-wide">
+                      🛡️ Security Deposit (धरोहर) *
+                    </label>
+                    <span className="text-[8px] font-extrabold bg-orange-200 text-orange-900 px-1 rounded">
+                      Key
+                    </span>
+                  </div>
                   <input
                     type="number"
-                    value={form.securityDeposit}
-                    onChange={e => setForm({ ...form, securityDeposit: Math.max(0, parseInt(e.target.value) || 0) })}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none font-bold text-gray-800 bg-white"
+                    value={form.securityDeposit === 0 ? '' : form.securityDeposit}
+                    onFocus={e => e.target.select()}
+                    onChange={e => {
+                      const val = e.target.value.trim();
+                      setForm({ ...form, securityDeposit: val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0) });
+                    }}
+                    className="w-full px-3 py-1.5 border-2 border-orange-300 focus:border-[#FF6B35] rounded-lg outline-none font-black text-gray-900 bg-white text-xs sm:text-sm"
+                    placeholder="0"
                   />
+                  <span className="text-[8px] text-orange-700 font-bold block mt-0.5">Refundable Security Amount</span>
                 </div>
+
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 mb-0.5">Electricity Charges / Advance (₹)</label>
                   <input
                     type="number"
-                    value={form.electricityCharges}
-                    onChange={e => setForm({ ...form, electricityCharges: Math.max(0, parseInt(e.target.value) || 0) })}
+                    value={form.electricityCharges === 0 ? '' : form.electricityCharges}
+                    onFocus={e => e.target.select()}
+                    onChange={e => {
+                      const val = e.target.value.trim();
+                      setForm({ ...form, electricityCharges: val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0) });
+                    }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none font-bold text-gray-800 bg-white"
+                    placeholder="0"
                   />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-gray-400 mb-0.5">Other Allied Services Charges (₹)</label>
                   <input
                     type="number"
-                    value={form.otherCharges}
-                    onChange={e => setForm({ ...form, otherCharges: Math.max(0, parseInt(e.target.value) || 0) })}
+                    value={form.otherCharges === 0 ? '' : form.otherCharges}
+                    onFocus={e => e.target.select()}
+                    onChange={e => {
+                      const val = e.target.value.trim();
+                      setForm({ ...form, otherCharges: val === '' ? 0 : Math.max(0, parseInt(val, 10) || 0) });
+                    }}
                     className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none font-bold text-gray-800 bg-white"
+                    placeholder="0"
                   />
                 </div>
               </div>
@@ -1380,17 +1459,18 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                     <input
                       type="number"
                       step="any"
-                      value={form.elecLastReading || 0}
+                      value={form.elecLastReading === 0 ? '' : form.elecLastReading}
+                      onFocus={e => e.target.select()}
                       onChange={e => {
-                        const val = parseFloat(e.target.value);
+                        const val = e.target.value.trim();
                         setForm({ 
                           ...form, 
-                          elecLastReading: isNaN(val) ? 0 : val,
+                          elecLastReading: val === '' ? 0 : (isNaN(parseFloat(val)) ? 0 : parseFloat(val)),
                           elecLastReadingDate: form.elecLastReadingDate || new Date().toLocaleDateString('en-IN')
                         });
                       }}
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none font-bold text-gray-800 bg-white text-xs sm:text-sm"
-                      placeholder="e.g. 0, 120, 350"
+                      placeholder="0"
                     />
                     <span className="text-[9px] text-gray-400 leading-none block mt-1">Starting reading of the sub-meter assigned to this student</span>
                   </div>
@@ -1399,13 +1479,14 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                     <input
                       type="number"
                       step="any"
-                      value={form.elecRatePerUnit || 10}
+                      value={form.elecRatePerUnit === 0 ? '' : form.elecRatePerUnit}
+                      onFocus={e => e.target.select()}
                       onChange={e => {
-                        const val = parseFloat(e.target.value);
-                        setForm({ ...form, elecRatePerUnit: isNaN(val) ? 10 : val });
+                        const val = e.target.value.trim();
+                        setForm({ ...form, elecRatePerUnit: val === '' ? 0 : (isNaN(parseFloat(val)) ? 10 : parseFloat(val)) });
                       }}
                       className="w-full px-3 py-2 border border-gray-200 rounded-xl outline-none font-bold text-gray-800 bg-white text-xs sm:text-sm"
-                      placeholder="e.g. 10"
+                      placeholder="10"
                     />
                     <span className="text-[9px] text-gray-400 leading-none block mt-1">Default is ₹10 per unit</span>
                   </div>
@@ -1604,7 +1685,10 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                   <div>
                     <select
                       value={(form.studentAadhaarDocFront && form.studentAadhaarDocFront.startsWith('data:')) || (form.studentAadhaarDoc && form.studentAadhaarDoc.startsWith('data:')) ? 'Received (Digital)' : (form.studentAadhaarDocFront || form.studentAadhaarDoc || 'Pending')}
-                      onChange={e => setForm({ ...form, studentAadhaarDocFront: e.target.value, studentAadhaarDoc: e.target.value })}
+                      onChange={e => {
+                        setHighlightField(null);
+                        setForm({ ...form, studentAadhaarDocFront: e.target.value, studentAadhaarDoc: e.target.value });
+                      }}
                       className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-white border border-gray-250 cursor-pointer text-[#1A1A2E]"
                     >
                       <option value="Pending">❌ Pending</option>
@@ -1632,7 +1716,10 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                   <input 
                     type="file" 
                     accept="image/*" 
-                    onChange={e => handleDocUpload('studentAadhaarDocFront', e.target.files?.[0] || null)}
+                    onChange={e => {
+                      setHighlightField(null);
+                      handleDocUpload('studentAadhaarDocFront', e.target.files?.[0] || null);
+                    }}
                     className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer w-full" 
                   />
                 </div>
@@ -1648,7 +1735,10 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                   <div>
                     <select
                       value={form.studentAadhaarDocBack && form.studentAadhaarDocBack.startsWith('data:') ? 'Received (Digital)' : (form.studentAadhaarDocBack && form.studentAadhaarDocBack !== 'Not Provided' ? form.studentAadhaarDocBack : 'Pending')}
-                      onChange={e => setForm({ ...form, studentAadhaarDocBack: e.target.value })}
+                      onChange={e => {
+                        setHighlightField(null);
+                        setForm({ ...form, studentAadhaarDocBack: e.target.value });
+                      }}
                       className="text-[10px] uppercase font-black px-2 py-0.5 rounded bg-white border border-gray-250 cursor-pointer text-[#1A1A2E]"
                     >
                       <option value="Pending">❌ Pending</option>
@@ -1676,7 +1766,10 @@ export default function StudentForm({ onSubmit, onCancel, onShowToast, studentTo
                   <input 
                     type="file" 
                     accept="image/*" 
-                    onChange={e => handleDocUpload('studentAadhaarDocBack', e.target.files?.[0] || null)}
+                    onChange={e => {
+                      setHighlightField(null);
+                      handleDocUpload('studentAadhaarDocBack', e.target.files?.[0] || null);
+                    }}
                     className="text-[9px] text-[#FF6B35] file:text-[9px] file:bg-orange-50 file:border-0 file:px-2 file:py-0.5 file:rounded cursor-pointer w-full" 
                   />
                 </div>

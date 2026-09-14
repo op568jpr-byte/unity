@@ -5,9 +5,9 @@
 
 export async function compressImageFile(
   fileOrBlob: File | Blob | string,
-  maxWidth: number = 1000,
-  maxHeight: number = 1000,
-  quality: number = 0.7
+  maxWidth: number = 520,
+  maxHeight: number = 520,
+  quality: number = 0.5
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     // If it's already a small data URL or string, handle accordingly
