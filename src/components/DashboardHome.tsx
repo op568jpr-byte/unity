@@ -37,18 +37,9 @@ export default function DashboardHome({
   onShowToast,
   onEditStudent
 }: DashboardHomeProps) {
-  const [isCapacityModalOpen, setIsCapacityModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const totalCapacity = typeof settings.totalBeds === 'number' && settings.totalBeds > 0 ? settings.totalBeds : 93;
-  const [capacityInput, setCapacityInput] = useState<number>(totalCapacity);
-
-  // Keep capacityInput in sync if settings update from cloud
-  React.useEffect(() => {
-    if (typeof settings.totalBeds === 'number' && settings.totalBeds > 0) {
-      setCapacityInput(settings.totalBeds);
-    }
-  }, [settings.totalBeds]);
 
   const registrationLink = getLiveAppUrl() + '?mode=student-form';
 
@@ -81,21 +72,6 @@ export default function DashboardHome({
   const occupiedBeds = students.filter(s => s.room && s.room !== 'Unassigned' && s.room !== 'Pending' && s.status !== 'Left').length;
   const vacantBeds = Math.max(0, totalCapacity - occupiedBeds);
 
-  const handleSaveCapacity = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!capacityInput || capacityInput < 1) {
-      onShowToast('Capacity must be at least 1 seat! ⚠️', true);
-      return;
-    }
-    if (onSaveSettings) {
-      onSaveSettings({
-        ...settings,
-        totalBeds: capacityInput
-      });
-    }
-    setIsCapacityModalOpen(false);
-    onShowToast(`Total Seat Capacity set to ${capacityInput} and saved to live database! 🏨`);
-  };
   const dueStudentsCount = students.filter(s => s.due > 0).length;
   const pendingComplaintsCount = complaints.filter(c => c.status === 'Pending').length;
   // Exclude Security Deposits from Total Collected as instructed by hostel owner
@@ -445,18 +421,13 @@ export default function DashboardHome({
             )}
 
             {s.label === "Vacant Beds" && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setCapacityInput(totalCapacity);
-                  setIsCapacityModalOpen(true);
-                }}
-                className="mt-3 flex items-center justify-center gap-1 text-[10px] bg-sky-100 hover:bg-sky-200 text-sky-800 font-extrabold px-2 py-1 rounded-full transition-all cursor-pointer shadow-xs active:scale-95 border border-sky-200/40"
-                title="Click to Change Total Student Capacity / Beds"
+              <div 
+                className="mt-3 flex items-center justify-center gap-1.5 text-[10px] bg-sky-50 text-sky-800 font-bold px-2 py-1 rounded-full border border-sky-200/50"
+                title={`Hostel capacity: ${totalCapacity} total beds (configured in Settings)`}
               >
-                <Settings className="w-3 h-3 text-sky-600" />
-                <span>Set Seats ({totalCapacity})</span>
-              </button>
+                <DoorOpen className="w-3 h-3 text-sky-600" />
+                <span>{occupiedBeds} Filled / {totalCapacity} Total</span>
+              </div>
             )}
 
             {s.label === "Total Collected" && (
@@ -717,73 +688,6 @@ export default function DashboardHome({
             </button>
           </div>
         </div>
-      </Modal>
-
-      {/* QUICK SET CAPACITY / TOTAL SEATS MODAL */}
-      <Modal
-        isOpen={isCapacityModalOpen}
-        onClose={() => setIsCapacityModalOpen(false)}
-        title="Set Total Student Capacity (कुल सीटें / बेड)"
-      >
-        <form onSubmit={handleSaveCapacity} className="space-y-4 text-xs sm:text-sm">
-          <div className="p-3 bg-amber-50/80 border border-amber-200/60 rounded-xl space-y-1">
-            <p className="text-amber-900 font-extrabold text-xs">🏨 Hostel Capacity Management</p>
-            <p className="text-amber-800 text-[11px] leading-relaxed">
-              Define total beds available in Unity Boys Hostel. Vacant seats count on Dashboard updates automatically!
-            </p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="block text-xs font-bold text-gray-700">
-              Total Student Seats / Beds (कुल छात्र क्षमता संख्या):
-            </label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setCapacityInput(prev => Math.max(1, prev - 1))}
-                className="w-10 h-10 rounded-xl bg-gray-100 border border-gray-300 font-black text-lg hover:bg-gray-200 flex items-center justify-center shrink-0 cursor-pointer"
-              >
-                -
-              </button>
-              <input
-                type="number"
-                min={1}
-                value={capacityInput}
-                onChange={e => {
-                  const val = parseInt(e.target.value);
-                  setCapacityInput(isNaN(val) ? 0 : val);
-                }}
-                className="w-full text-center font-extrabold text-base text-[#1A1A2E] bg-white border border-gray-300 rounded-xl py-2 px-3 focus:border-[#FF6B35] outline-none shadow-xs"
-              />
-              <button
-                type="button"
-                onClick={() => setCapacityInput(prev => prev + 1)}
-                className="w-10 h-10 rounded-xl bg-gray-100 border border-gray-300 font-black text-lg hover:bg-gray-200 flex items-center justify-center shrink-0 cursor-pointer"
-              >
-                +
-              </button>
-            </div>
-            <p className="text-[10px] text-gray-400 font-medium">
-              Current Occupied Beds: <strong className="text-emerald-600">{occupiedBeds}</strong> | Calculated Vacant: <strong className="text-sky-600">{Math.max(0, capacityInput - occupiedBeds)}</strong>
-            </p>
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={() => setIsCapacityModalOpen(false)}
-              className="px-4 py-2 border border-gray-300 text-gray-700 font-bold rounded-xl text-xs cursor-pointer hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-5 py-2 bg-gradient-to-r from-[#FF6B35] to-[#FF8C42] text-white font-extrabold rounded-xl text-xs cursor-pointer hover:shadow-md transition active:scale-95"
-            >
-              Save Capacity & Sync Live 💾
-            </button>
-          </div>
-        </form>
       </Modal>
 
       {/* Share Admission Form Link Modal */}

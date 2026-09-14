@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { 
   Users, TrendingDown, DollarSign, PlusCircle, Trash2, 
   Search, Filter, Calendar, FileText, CheckCircle, ArrowRightLeft, Sparkles, AlertCircle,
-  Edit, History, Building, Flame, ShieldAlert, ShoppingBag, PieChart, Coins
+  Edit, History, Building, Flame, ShieldAlert, ShoppingBag, PieChart, Coins,
+  Banknote, CreditCard, Handshake
 } from 'lucide-react';
-import { PartnerWithdrawal, Payment, HostelExpense, ExpenseCategory, isSecurityDepositPayment } from '../types';
+import { PartnerWithdrawal, Payment, HostelExpense, ExpenseCategory, PaymentMode, isSecurityDepositPayment } from '../types';
 
 interface PartnerManagementProps {
   partnerWithdrawals: PartnerWithdrawal[];
@@ -13,9 +14,9 @@ interface PartnerManagementProps {
   onDeleteWithdrawal: (id: number) => void;
   onEditWithdrawal: (id: number, fields: { partner: 'Shiv' | 'Sunny'; amount: number; date: string; purpose: string }) => void;
   expenses: HostelExpense[];
-  onAddExpense: (category: ExpenseCategory, amount: number, date: string, purpose: string) => void;
+  onAddExpense: (category: ExpenseCategory, amount: number, date: string, purpose: string, mode: PaymentMode) => void;
   onDeleteExpense: (id: number) => void;
-  onEditExpense: (id: number, fields: { category: ExpenseCategory; amount: number; date: string; purpose: string }) => void;
+  onEditExpense: (id: number, fields: { category: ExpenseCategory; amount: number; date: string; purpose: string; mode?: PaymentMode }) => void;
   onShowToast: (msg: string, isError?: boolean) => void;
 }
 
@@ -46,6 +47,7 @@ export default function PartnerManagement({
   const [eAmount, setEAmount] = useState<string>('');
   const [eDate, setEDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [ePurpose, setEPurpose] = useState<string>('');
+  const [eMode, setEMode] = useState<PaymentMode>('Cash');
   const [editingEItem, setEditingEItem] = useState<HostelExpense | null>(null);
 
   // Search & Filter state
@@ -54,6 +56,7 @@ export default function PartnerManagement({
 
   const [expenseSearch, setExpenseSearch] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<'All' | ExpenseCategory>('All');
+  const [expenseModeFilter, setExpenseModeFilter] = useState<'All' | PaymentMode>('All');
 
   // Calculations - exclude security deposits as per owner policy
   const feePayments = payments.filter(p => !isSecurityDepositPayment(p));
@@ -76,7 +79,13 @@ export default function PartnerManagement({
   const electricityExpenses = expenses.filter(e => e.category === 'Electricity').reduce((sum, e) => sum + e.amount, 0);
   const salaryExpenses = expenses.filter(e => e.category === 'Salary').reduce((sum, e) => sum + e.amount, 0);
   const kiranaExpenses = expenses.filter(e => e.category === 'Kirana').reduce((sum, e) => sum + e.amount, 0);
+  const sabjiSamanExpenses = expenses.filter(e => e.category === 'SabjiHostelSaman' || e.category === 'SabjiJarurat').reduce((sum, e) => sum + e.amount, 0);
+  const loanExpenses = expenses.filter(e => e.category === 'LoanPayment').reduce((sum, e) => sum + e.amount, 0);
   const otherExpenses = expenses.filter(e => e.category === 'Other').reduce((sum, e) => sum + e.amount, 0);
+
+  // Mode calculations for expenses
+  const cashExpenses = expenses.filter(e => (e.mode || 'Cash') === 'Cash').reduce((sum, e) => sum + e.amount, 0);
+  const onlineExpenses = expenses.filter(e => e.mode === 'Online').reduce((sum, e) => sum + e.amount, 0);
 
   const totalExpenses = expenses.reduce((sum, e) => sum + e.amount, 0);
 
@@ -138,10 +147,11 @@ export default function PartnerManagement({
   // Handlers for Hostel Expenses
   const handleStartEEdit = (item: HostelExpense) => {
     setEditingEItem(item);
-    setCategory(item.category);
+    setCategory(item.category === 'SabjiJarurat' ? 'SabjiHostelSaman' : item.category);
     setEAmount(item.amount.toString());
     setEDate(item.date);
     setEPurpose(item.purpose);
+    setEMode(item.mode || 'Cash');
     onShowToast(`Editing ₹${item.amount.toLocaleString('en-IN')} ${item.category} expense entry ✏️`);
   };
 
@@ -151,6 +161,7 @@ export default function PartnerManagement({
     setEAmount('');
     setEDate(new Date().toISOString().split('T')[0]);
     setEPurpose('');
+    setEMode('Cash');
   };
 
   const handleESubmit = (e: React.FormEvent) => {
@@ -170,17 +181,19 @@ export default function PartnerManagement({
         category,
         amount: numAmount,
         date: eDate,
-        purpose: ePurpose.trim()
+        purpose: ePurpose.trim(),
+        mode: eMode
       });
       setEditingEItem(null);
-      onShowToast(`खर्च प्रविष्टि ₹${numAmount.toLocaleString('en-IN')} सफलतापूर्वक अपडेट की गई! ✏️`);
+      onShowToast(`खर्च प्रविष्टि ₹${numAmount.toLocaleString('en-IN')} (${eMode}) सफलतापूर्वक अपडेट की गई! ✏️`);
     } else {
-      onAddExpense(category, numAmount, eDate, ePurpose.trim());
-      onShowToast(`नया हॉस्टल खर्च ₹${numAmount.toLocaleString('en-IN')} (${category}) सफलतापूर्वक दर्ज किया गया! ✅`);
+      onAddExpense(category, numAmount, eDate, ePurpose.trim(), eMode);
+      onShowToast(`नया हॉस्टल खर्च ₹${numAmount.toLocaleString('en-IN')} (${eMode}) सफलतापूर्वक दर्ज किया गया! ✅`);
     }
     setEAmount('');
     setEPurpose('');
     setEDate(new Date().toISOString().split('T')[0]);
+    setEMode('Cash');
   };
 
   // Filtered withdrawals list
@@ -197,8 +210,11 @@ export default function PartnerManagement({
     const matchesSearch = e.purpose.toLowerCase().includes(expenseSearch.toLowerCase()) ||
                           e.amount.toString().includes(expenseSearch) ||
                           e.date.includes(expenseSearch);
-    const matchesCategory = categoryFilter === 'All' || e.category === categoryFilter;
-    return matchesSearch && matchesCategory;
+    const matchesCategory = categoryFilter === 'All' || 
+                            e.category === categoryFilter ||
+                            (categoryFilter === 'SabjiHostelSaman' && e.category === 'SabjiJarurat');
+    const matchesMode = expenseModeFilter === 'All' || (e.mode || 'Cash') === expenseModeFilter;
+    return matchesSearch && matchesCategory && matchesMode;
   }).reverse();
 
   // Get localized Category label
@@ -208,6 +224,10 @@ export default function PartnerManagement({
       case 'Electricity': return '⚡ Bijli Bill / बिजली बिल';
       case 'Salary': return '💼 Salary / स्टाफ वेतन';
       case 'Kirana': return '🛒 Kirana / किराना सामान';
+      case 'SabjiHostelSaman':
+      case 'SabjiJarurat':
+        return '🥦 Sabji & Hostel Saman / सब्जी व हॉस्टल के सामान';
+      case 'LoanPayment': return '🤝 Loan Payment / कर्ज वापसी (ऋण भुगतान)';
       case 'Other': return '📦 Other / अन्य खर्चे';
     }
   };
@@ -218,6 +238,10 @@ export default function PartnerManagement({
       case 'Electricity': return 'bg-amber-50 text-amber-700 border-amber-100';
       case 'Salary': return 'bg-blue-50 text-blue-700 border-blue-100';
       case 'Kirana': return 'bg-emerald-50 text-emerald-700 border-emerald-100';
+      case 'SabjiHostelSaman':
+      case 'SabjiJarurat':
+        return 'bg-teal-50 text-teal-700 border-teal-150';
+      case 'LoanPayment': return 'bg-indigo-50 text-indigo-700 border-indigo-150';
       case 'Other': return 'bg-rose-50 text-rose-700 border-rose-100';
     }
   };
@@ -259,10 +283,17 @@ export default function PartnerManagement({
           <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             ₹{totalExpenses.toLocaleString('en-IN')}
           </h3>
-          <p className="text-[10px] text-rose-200 mt-2 flex items-center gap-1 font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-400 animate-pulse"></span>
-            Rent, Bill, Salary, Kirana, Other
-          </p>
+          <div className="mt-2 flex flex-col gap-1 text-[10px]">
+            <div className="flex items-center gap-1.5 font-bold text-rose-200">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+              <span>💵 Cash: ₹{cashExpenses.toLocaleString('en-IN')}</span>
+              <span className="text-rose-400">|</span>
+              <span>💳 Online: ₹{onlineExpenses.toLocaleString('en-IN')}</span>
+            </div>
+            <div className="text-[9px] text-rose-300/80 font-medium">
+              Rent, Bill, Salary, Kirana, Sabji/Saman, Loan, Other
+            </div>
+          </div>
         </div>
 
         {/* Total Withdrawals Card */}
@@ -333,10 +364,10 @@ export default function PartnerManagement({
             <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
               <PieChart className="w-4 h-4 text-rose-500" /> Expense Allocation Breakdown (खर्चों का वर्गीकरण)
             </h4>
-            <span className="text-[10px] text-slate-400 font-bold">Allocated across 5 master categories</span>
+            <span className="text-[10px] text-slate-400 font-bold">Allocated across 7 master categories</span>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5 sm:gap-3">
             {/* Rent Block */}
             <div className="p-3 rounded-2xl bg-purple-50 border border-purple-100">
               <span className="text-[9px] uppercase font-black text-purple-600 block">🏠 Rent (किराया)</span>
@@ -373,8 +404,26 @@ export default function PartnerManagement({
               </div>
             </div>
 
+            {/* Sabji & Hostel Saman Block */}
+            <div className="p-3 rounded-2xl bg-teal-50 border border-teal-100">
+              <span className="text-[9px] uppercase font-black text-teal-700 block">🥦 Sabji/Hostel Saman (सब्जी/सामान)</span>
+              <h5 className="text-sm font-black text-slate-800 font-mono mt-1">₹{sabjiSamanExpenses.toLocaleString('en-IN')}</h5>
+              <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div className="h-full bg-teal-500" style={{ width: `${totalExpenses > 0 ? (sabjiSamanExpenses / totalExpenses) * 100 : 0}%` }}></div>
+              </div>
+            </div>
+
+            {/* Loan Payment Block */}
+            <div className="p-3 rounded-2xl bg-indigo-50 border border-indigo-100">
+              <span className="text-[9px] uppercase font-black text-indigo-700 block">🤝 Loan (कर्ज वापसी)</span>
+              <h5 className="text-sm font-black text-slate-800 font-mono mt-1">₹{loanExpenses.toLocaleString('en-IN')}</h5>
+              <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                <div className="h-full bg-indigo-600" style={{ width: `${totalExpenses > 0 ? (loanExpenses / totalExpenses) * 100 : 0}%` }}></div>
+              </div>
+            </div>
+
             {/* Other Block */}
-            <div className="col-span-2 sm:col-span-1 p-3 rounded-2xl bg-rose-50 border border-rose-100">
+            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-100">
               <span className="text-[9px] uppercase font-black text-rose-600 block">📦 Other (अन्य खर्चे)</span>
               <h5 className="text-sm font-black text-slate-800 font-mono mt-1">₹{otherExpenses.toLocaleString('en-IN')}</h5>
               <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
@@ -455,8 +504,43 @@ export default function PartnerManagement({
                   <option value="Electricity">⚡ Electricity Bill (बिजली बिल)</option>
                   <option value="Salary">💼 Staff Salary (कर्मचारी वेतन)</option>
                   <option value="Kirana">🛒 Grocery / Kirana (किराना सामान)</option>
+                  <option value="SabjiHostelSaman">🥦 Sabji / Hostel Ke Saman (सब्जी / हॉस्टल के सामान)</option>
+                  <option value="LoanPayment">🤝 Loan Payment / शुरुआती कर्ज वापसी (ऋण अदायगी)</option>
                   <option value="Other">📦 Other Miscellaneous (अन्य खर्च)</option>
                 </select>
+              </div>
+
+              {/* Payment Mode Selector (Cash vs Online) */}
+              <div className="space-y-1">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                  Payment Mode / भुगतान माध्यम (Cash या Online)
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEMode('Cash')}
+                    className={`py-2 px-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition border cursor-pointer ${
+                      eMode === 'Cash'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Banknote className="w-4 h-4" />
+                    <span>💵 Cash (नकद)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEMode('Online')}
+                    className={`py-2 px-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 transition border cursor-pointer ${
+                      eMode === 'Online'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <CreditCard className="w-4 h-4" />
+                    <span>💳 Online (ऑनलाइन)</span>
+                  </button>
+                </div>
               </div>
 
               {/* Amount */}
@@ -543,23 +627,36 @@ export default function PartnerManagement({
                 </p>
               </div>
 
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 {/* Category select filter */}
                 <select
                   value={categoryFilter}
                   onChange={e => setCategoryFilter(e.target.value as any)}
                   className="px-3 py-1.5 border border-slate-200 rounded-xl text-[11px] font-extrabold text-slate-600 bg-white cursor-pointer"
                 >
-                  <option value="All">All Categories</option>
+                  <option value="All">All Categories (सभी खर्च)</option>
                   <option value="Rent">🏠 Rent only</option>
                   <option value="Electricity">⚡ Electricity only</option>
                   <option value="Salary">💼 Salary only</option>
                   <option value="Kirana">🛒 Kirana only</option>
+                  <option value="SabjiHostelSaman">🥦 Sabji / Hostel Saman only</option>
+                  <option value="LoanPayment">🤝 Loan Payment only (कर्ज वापसी)</option>
                   <option value="Other">📦 Other only</option>
                 </select>
 
+                {/* Mode select filter */}
+                <select
+                  value={expenseModeFilter}
+                  onChange={e => setExpenseModeFilter(e.target.value as any)}
+                  className="px-3 py-1.5 border border-slate-200 rounded-xl text-[11px] font-extrabold text-slate-600 bg-white cursor-pointer"
+                >
+                  <option value="All">All Modes (सभी माध्यम)</option>
+                  <option value="Cash">💵 Cash only (नकद)</option>
+                  <option value="Online">💳 Online only (ऑनलाइन)</option>
+                </select>
+
                 {/* Search query */}
-                <div className="relative flex-1 sm:w-40">
+                <div className="relative flex-1 sm:w-36">
                   <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
                   <input
                     type="text"
@@ -586,6 +683,7 @@ export default function PartnerManagement({
                     <tr className="bg-slate-50 border-b border-slate-100 text-slate-500 uppercase tracking-widest font-black text-[9px]">
                       <th className="py-3 px-4">Category</th>
                       <th className="py-3 px-4">Amount</th>
+                      <th className="py-3 px-4">Mode (माध्यम)</th>
                       <th className="py-3 px-4">Date</th>
                       <th className="py-3 px-4">Description / Details</th>
                       <th className="py-3 px-4">Logged By</th>
@@ -604,8 +702,19 @@ export default function PartnerManagement({
                           <td className="py-3 px-4 font-mono font-extrabold text-slate-900">
                             ₹{item.amount.toLocaleString('en-IN')}
                           </td>
+                          <td className="py-3 px-4">
+                            {(item.mode || 'Cash') === 'Online' ? (
+                              <span className="px-2 py-0.5 rounded-md font-extrabold text-[10px] tracking-wide bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1 shadow-2xs">
+                                <CreditCard className="w-3 h-3 text-blue-600" /> Online
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-md font-extrabold text-[10px] tracking-wide bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1 shadow-2xs">
+                                <Banknote className="w-3 h-3 text-emerald-600" /> Cash
+                              </span>
+                            )}
+                          </td>
                           <td className="py-3 px-4 font-mono text-slate-500">
-                            {item.date.split('-').reverse().join('/')}
+                            {item.date ? (item.date.includes('-') ? item.date.split('-').reverse().join('/') : item.date) : ''}
                           </td>
                           <td className="py-3 px-4 text-slate-700 font-sans max-w-[220px]" title={item.purpose}>
                             <div className="font-semibold text-slate-800">{item.purpose}</div>
@@ -616,7 +725,7 @@ export default function PartnerManagement({
                                 </span>
                                 {item.history.map((hist, hIdx) => (
                                   <div key={hIdx} className="border-t border-amber-100/40 pt-1 mt-1">
-                                    ₹{hist.amount.toLocaleString('en-IN')} on {hist.date.split('-').reverse().join('/')} ({hist.purpose})
+                                    ₹{hist.amount.toLocaleString('en-IN')} on {hist.date ? (hist.date.includes('-') ? hist.date.split('-').reverse().join('/') : hist.date) : (hist.editedAt || 'Earlier')} ({hist.purpose})
                                   </div>
                                 ))}
                               </div>
@@ -659,7 +768,7 @@ export default function PartnerManagement({
               <AlertCircle className="w-4 h-4 mt-0.5 text-rose-600 flex-shrink-0" />
               <div className="text-[10px] leading-relaxed">
                 <span className="font-extrabold block">💡 Monthly Expenses Audit (मासिक खर्च नियंत्रण):</span>
-                Recording monthly rent, electricity billing meter charges, staff support payroll, grocery kirana, and general expenses directly calculates and updates the <strong>Net Remaining Cash</strong> in real-time. This helps Shiv and Sunny always inspect how much real cash is remaining in the drawer.
+                Recording monthly rent, electricity billing meter charges, staff support payroll, grocery kirana, vegetables & daily essentials (सब्जी व हॉस्टल जरूरत का सामान), and general expenses directly calculates and updates the <strong>Net Remaining Cash</strong> in real-time. This helps Shiv and Sunny always inspect how much real cash is remaining in the drawer.
               </div>
             </div>
 
@@ -862,7 +971,7 @@ export default function PartnerManagement({
                             ₹{item.amount.toLocaleString('en-IN')}
                           </td>
                           <td className="py-3 px-4 font-mono text-slate-500">
-                            {item.date.split('-').reverse().join('/')}
+                            {item.date ? (item.date.includes('-') ? item.date.split('-').reverse().join('/') : item.date) : ''}
                           </td>
                           <td className="py-3 px-4 text-slate-700 font-sans max-w-[200px]" title={item.purpose}>
                             <div className="font-semibold">{item.purpose}</div>
@@ -873,7 +982,7 @@ export default function PartnerManagement({
                                 </span>
                                 {item.history.map((hist, hIdx) => (
                                   <div key={hIdx} className="border-t border-amber-100/40 pt-1 mt-1">
-                                    ₹{hist.amount.toLocaleString('en-IN')} on {hist.date.split('-').reverse().join('/')} ({hist.purpose})
+                                    ₹{hist.amount.toLocaleString('en-IN')} on {hist.date ? (hist.date.includes('-') ? hist.date.split('-').reverse().join('/') : hist.date) : (hist.editedAt || 'Earlier')} ({hist.purpose})
                                   </div>
                                 ))}
                               </div>

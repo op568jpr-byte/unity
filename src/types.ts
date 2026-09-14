@@ -1,6 +1,7 @@
 export type RoomSharing = 'Single' | 'Double' | 'Triple';
 export type StudentStatus = 'Active' | 'Notice' | 'Left';
-export type PaymentMode = 'Cash' | 'UPI' | 'Bank Transfer';
+export type PaymentMode = 'Cash' | 'Online' | 'UPI' | 'Bank Transfer';
+export type ExpensePaymentMode = 'Cash' | 'Online';
 export type ComplaintType = 'WiFi' | 'Electricity' | 'Plumbing' | 'Cleaning' | 'Other';
 export type ComplaintPriority = 'Low' | 'Medium' | 'High';
 export type ComplaintStatus = 'Pending' | 'Resolved';
@@ -229,7 +230,7 @@ export interface PartnerWithdrawal {
   }[];
 }
 
-export type ExpenseCategory = 'Rent' | 'Electricity' | 'Salary' | 'Kirana' | 'Other';
+export type ExpenseCategory = 'Rent' | 'Electricity' | 'Salary' | 'Kirana' | 'SabjiHostelSaman' | 'SabjiJarurat' | 'LoanPayment' | 'Other';
 
 export interface HostelExpense {
   id: number;
@@ -237,12 +238,14 @@ export interface HostelExpense {
   amount: number;
   date: string; // e.g. "2026-06-24"
   purpose: string;
+  mode?: PaymentMode; // 'Cash' | 'Online'
   recordedBy: string;
   isEdited?: boolean;
   history?: {
     date: string;
     amount: number;
     purpose: string;
+    mode?: PaymentMode;
     editedAt: string;
   }[];
 }

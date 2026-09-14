@@ -17,7 +17,7 @@ import {
 } from './lib/firebase';
 
 // Core types & fallback startup data
-import { Student, Payment, Complaint, Visitor, HostelSettings, UserSession, RoomSharing, StudentStatus, PartnerWithdrawal, HostelExpense, ExpenseCategory } from './types';
+import { Student, Payment, Complaint, Visitor, HostelSettings, UserSession, RoomSharing, StudentStatus, PartnerWithdrawal, HostelExpense, ExpenseCategory, PaymentMode } from './types';
 import { 
   INITIAL_STUDENTS, INITIAL_PAYMENTS, INITIAL_COMPLAINTS, 
   INITIAL_VISITORS, DEFAULT_SETTINGS, INITIAL_PARTNER_WITHDRAWALS, INITIAL_HOSTEL_EXPENSES
@@ -944,13 +944,14 @@ export default function App() {
     }
   };
 
-  const handleAddExpense = (category: ExpenseCategory, amount: number, date: string, purpose: string) => {
+  const handleAddExpense = (category: ExpenseCategory, amount: number, date: string, purpose: string, mode: PaymentMode = 'Cash') => {
     const newE: HostelExpense = {
       id: Date.now(),
       category,
       amount,
       date,
       purpose,
+      mode,
       recordedBy: session?.name || 'Master Admin'
     };
     handleExpensesUpdate([...expenses, newE]);
@@ -961,13 +962,14 @@ export default function App() {
     handleExpensesUpdate(updated);
   };
 
-  const handleEditExpense = (id: number, updatedFields: { category: ExpenseCategory; amount: number; date: string; purpose: string }) => {
+  const handleEditExpense = (id: number, updatedFields: { category: ExpenseCategory; amount: number; date: string; purpose: string; mode?: PaymentMode }) => {
     const updated = expenses.map(e => {
       if (e.id === id) {
         const historyEntry = {
           date: e.date,
           amount: e.amount,
           purpose: e.purpose,
+          mode: e.mode || 'Cash',
           editedAt: new Date().toLocaleString('en-IN')
         };
         const currentHistory = e.history || [];
