@@ -1168,12 +1168,26 @@ export default function App() {
   };
 
   // Registering or Correcting payment collections
-  const handleRecordPayment = (fields: { studentId: number; amount: number; mode: any; month: string; date?: string; note: string; paymentType?: 'Monthly' | 'Installment'; installmentNo?: string }) => {
+  const handleRecordPayment = (fields: { 
+    studentId: number; 
+    amount: number; 
+    mode: any; 
+    month: string; 
+    date?: string; 
+    note: string; 
+    paymentType?: 'Monthly' | 'Installment' | 'Security'; 
+    installmentNo?: string;
+    isSecurityDeposit?: boolean;
+  }) => {
     const matchingStudentObj = students.find(s => s.id === fields.studentId);
     if (!matchingStudentObj) {
       showToast('Lodger not mapped in dataset! ⚠️', true);
       return;
     }
+
+    const isSecurity = fields.isSecurityDeposit === true || 
+                       fields.paymentType === 'Security' || 
+                       fields.installmentNo === 'Security Deposit';
 
     if (paymentToEdit) {
       // Revert old payment balances off the previous student
@@ -1221,9 +1235,10 @@ export default function App() {
             month: fields.month,
             date: fields.date || p.date,
             note: fields.note,
-            paymentType: fields.paymentType || 'Monthly',
-            installmentNo: fields.installmentNo,
-            fatherName: matchingStudentObj.father
+            paymentType: fields.paymentType || (isSecurity ? 'Security' : 'Monthly'),
+            installmentNo: fields.installmentNo || (isSecurity ? 'Security Deposit' : undefined),
+            fatherName: matchingStudentObj.father,
+            isSecurityDeposit: isSecurity
           };
         }
         return p;
@@ -1249,9 +1264,10 @@ export default function App() {
       month: fields.month,
       date: fields.date || new Date().toLocaleDateString('en-IN'),
       note: fields.note,
-      paymentType: fields.paymentType || 'Monthly',
-      installmentNo: fields.installmentNo,
-      fatherName: matchingStudentObj.father
+      paymentType: fields.paymentType || (isSecurity ? 'Security' : 'Monthly'),
+      installmentNo: fields.installmentNo || (isSecurity ? 'Security Deposit' : undefined),
+      fatherName: matchingStudentObj.father,
+      isSecurityDeposit: isSecurity
     };
 
     // Update balances of student in registration register

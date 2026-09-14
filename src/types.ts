@@ -124,10 +124,25 @@ export interface Payment {
   month: string; // e.g. "2026-06"
   date: string;  // e.g. "19/06/2026"
   note: string;
-  paymentType?: 'Monthly' | 'Installment';
+  paymentType?: 'Monthly' | 'Installment' | 'Security';
   installmentNo?: string;
   fatherName?: string;
+  isSecurityDeposit?: boolean;
 }
+
+export const isSecurityDepositPayment = (p: {
+  paymentType?: string;
+  installmentNo?: string;
+  isSecurityDeposit?: boolean;
+  note?: string;
+}): boolean => {
+  if (!p) return false;
+  if (p.isSecurityDeposit === true) return true;
+  if (p.paymentType === 'Security') return true;
+  if (p.installmentNo === 'Security Deposit') return true;
+  if (typeof p.note === 'string' && /security\s*deposit|सुरक्षा\s*निधि|धरोहर/i.test(p.note)) return true;
+  return false;
+};
 
 export interface Complaint {
   id: number;

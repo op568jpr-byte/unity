@@ -12,7 +12,7 @@ import {
   Info,
   Users
 } from 'lucide-react';
-import { Student, Payment, Complaint, Visitor } from '../types';
+import { Student, Payment, Complaint, Visitor, isSecurityDepositPayment } from '../types';
 
 interface ReportsPanelProps {
   students: Student[];
@@ -31,45 +31,56 @@ export default function ReportsPanel({
 }: ReportsPanelProps) {
   const [selectedMonth, setSelectedMonth] = useState('All');
 
-  // Helper to compile overall stats
+  // Helper to compile overall stats (excluding security deposits from fee revenue)
   let overallCashTotal = 0;
   let overallOnlineTotal = 0;
-  let overallPaymentsSum = 0;
+  let overallFeePaymentsSum = 0;
+  let overallSecuritySum = 0;
   let cashTxCount = 0;
   let onlineTxCount = 0;
 
   payments.forEach(p => {
-    const isCash = p.mode === 'Cash';
+    const isSecurity = isSecurityDepositPayment(p);
     const amt = p.amount || 0;
+    const isCash = p.mode === 'Cash';
     
-    if (isCash) {
-      overallCashTotal += amt;
-      cashTxCount++;
+    if (isSecurity) {
+      overallSecuritySum += amt;
     } else {
-      overallOnlineTotal += amt;
-      onlineTxCount++;
+      overallFeePaymentsSum += amt;
+      if (isCash) {
+        overallCashTotal += amt;
+        cashTxCount++;
+      } else {
+        overallOnlineTotal += amt;
+        onlineTxCount++;
+      }
     }
-    overallPaymentsSum += amt;
   });
 
   // Compile Month-Wise Collection distribution
-  const monthlyLogs: { [month: string]: { cash: number; online: number; total: number; count: number } } = {};
+  const monthlyLogs: { [month: string]: { cash: number; online: number; total: number; count: number; security: number } } = {};
   
   payments.forEach(p => {
     const m = p.month || 'Unspecified Month';
     const amt = p.amount || 0;
     const isCash = p.mode === 'Cash';
+    const isSecurity = isSecurityDepositPayment(p);
 
     if (!monthlyLogs[m]) {
-      monthlyLogs[m] = { cash: 0, online: 0, total: 0, count: 0 };
+      monthlyLogs[m] = { cash: 0, online: 0, total: 0, count: 0, security: 0 };
     }
 
-    if (isCash) {
-      monthlyLogs[m].cash += amt;
+    if (isSecurity) {
+      monthlyLogs[m].security += amt;
     } else {
-      monthlyLogs[m].online += amt;
+      if (isCash) {
+        monthlyLogs[m].cash += amt;
+      } else {
+        monthlyLogs[m].online += amt;
+      }
+      monthlyLogs[m].total += amt;
     }
-    monthlyLogs[m].total += amt;
     monthlyLogs[m].count += 1;
   });
 
@@ -122,9 +133,10 @@ export default function ReportsPanel({
     const rowsDivider1 = ['', '', '', '', ''];
     const rowsDivider2 = ['--- OVERALL SYSTEM MODE AUDIT SUMMARY ---', '', '', '', ''];
     const rowsMode = [
-      ['Cash Mode Collections Audit', overallCashTotal, '', overallCashTotal, `${cashTxCount} collections`],
-      ['Online Digital Collections Audit', '', overallOnlineTotal, overallOnlineTotal, `${onlineTxCount} collections`],
-      ['Total Hostel Unified Collections Sum', overallCashTotal, overallOnlineTotal, overallPaymentsSum, `${payments.length} total payments`]
+      ['Cash Fee Collections Audit', overallCashTotal, '', overallCashTotal, `${cashTxCount} collections`],
+      ['Online Fee Collections Audit', '', overallOnlineTotal, overallOnlineTotal, `${onlineTxCount} collections`],
+      ['Total Hostel Fee Collections (Excl. Security)', overallCashTotal, overallOnlineTotal, overallFeePaymentsSum, `${cashTxCount + onlineTxCount} fee payments`],
+      ['Security Deposits Held (Separate Reserve)', '', '', overallSecuritySum, 'Security Deposit Reserve']
     ];
 
     const combinedRows = [
@@ -262,18 +274,23 @@ export default function ReportsPanel({
         {/* Metric Card A: Overall Collections */}
         <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-150 rounded-2xl p-5 shadow-xs relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] uppercase font-bold text-teal-800 tracking-wider">Overall Combined Collections (कुल संकलन)</span>
+            <span className="text-[10px] uppercase font-bold text-teal-800 tracking-wider">Overall Fee Collections (कुल फीस संग्रह)</span>
             <div className="w-8 h-8 rounded-lg bg-teal-500/10 flex items-center justify-center text-teal-600">
               <TrendingUp className="w-4 h-4" />
             </div>
           </div>
           <div className="mt-4">
             <h3 className="text-xl sm:text-2xl font-black text-teal-950 font-mono">
-              ₹{overallPaymentsSum.toLocaleString('en-IN')}
+              ₹{overallFeePaymentsSum.toLocaleString('en-IN')}
             </h3>
-            <span className="text-[9px] text-teal-600 font-extrabold block mt-1 uppercase">
-              Total logs: {payments.length} collections
-            </span>
+            <div className="flex items-center justify-between mt-1 text-[9px] font-extrabold uppercase text-teal-700">
+              <span>Rent & Fees Only</span>
+              {overallSecuritySum > 0 && (
+                <span className="text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded font-black">
+                  🛡️ Security: ₹{overallSecuritySum.toLocaleString('en-IN')}
+                </span>
+              )}
+            </div>
           </div>
         </div>
 

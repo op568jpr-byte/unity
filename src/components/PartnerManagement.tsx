@@ -4,7 +4,7 @@ import {
   Search, Filter, Calendar, FileText, CheckCircle, ArrowRightLeft, Sparkles, AlertCircle,
   Edit, History, Building, Flame, ShieldAlert, ShoppingBag, PieChart, Coins
 } from 'lucide-react';
-import { PartnerWithdrawal, Payment, HostelExpense, ExpenseCategory } from '../types';
+import { PartnerWithdrawal, Payment, HostelExpense, ExpenseCategory, isSecurityDepositPayment } from '../types';
 
 interface PartnerManagementProps {
   partnerWithdrawals: PartnerWithdrawal[];
@@ -55,8 +55,11 @@ export default function PartnerManagement({
   const [expenseSearch, setExpenseSearch] = useState<string>('');
   const [categoryFilter, setCategoryFilter] = useState<'All' | ExpenseCategory>('All');
 
-  // Calculations
-  const totalHostelCollections = payments.reduce((sum, p) => sum + p.amount, 0);
+  // Calculations - exclude security deposits as per owner policy
+  const feePayments = payments.filter(p => !isSecurityDepositPayment(p));
+  const securityPayments = payments.filter(p => isSecurityDepositPayment(p));
+  const totalHostelCollections = feePayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalSecurityCollected = securityPayments.reduce((sum, p) => sum + p.amount, 0);
   
   const shivWithdrawals = partnerWithdrawals
     .filter(w => w.partner === 'Shiv')
@@ -234,10 +237,17 @@ export default function PartnerManagement({
           <h3 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
             ₹{totalHostelCollections.toLocaleString('en-IN')}
           </h3>
-          <p className="text-[10px] text-gray-400 mt-2 flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
-            Sum of all student fee receipts
-          </p>
+          <div className="text-[10px] text-gray-400 mt-2 flex flex-col gap-1">
+            <p className="flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+              Rent receipts (Security excluded)
+            </p>
+            {totalSecurityCollected > 0 && (
+              <p className="text-amber-300 font-bold bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/40 text-[9px] flex items-center gap-1">
+                <span>🛡️</span> Security Held: ₹{totalSecurityCollected.toLocaleString('en-IN')} (अमानत)
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Total Monthly Expenses Card */}

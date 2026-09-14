@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Landmark, Printer, Sparkles, Inbox, IndianRupee, CreditCard, Receipt, Search, Filter, Pencil, Trash2, AlertTriangle, AlertOctagon, Clock } from 'lucide-react';
-import { Payment, Student } from '../types';
+import { Payment, Student, isSecurityDepositPayment } from '../types';
 import ConfirmationModal from './ConfirmationModal';
 import DuePayments from './DuePayments';
 
@@ -50,8 +50,14 @@ export default function PaymentManagement({
       p.receipt.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.room.toLowerCase().includes(searchQuery.toLowerCase());
 
+    const isSec = isSecurityDepositPayment(p);
     const planMode = getStudentInstallmentType(p.studentId);
-    const matchesInstallment = installmentFilter === 'All' || planMode === installmentFilter;
+    const matchesInstallment = 
+      installmentFilter === 'All' 
+        ? true 
+        : installmentFilter === 'Security'
+          ? isSec
+          : (!isSec && planMode === installmentFilter);
 
     return matchesSearch && matchesInstallment;
   });
@@ -170,12 +176,13 @@ export default function PaymentManagement({
               onChange={(e) => setInstallmentFilter(e.target.value)}
               className="w-full pl-9 pr-10 py-2 border border-gray-200 focus:border-[#FF6B35] rounded-xl outline-none bg-white cursor-pointer font-bold text-xs sm:text-sm text-gray-700 appearance-none"
             >
-              <option value="All">All Installment Structures (सभी किश्त योजनाएं)</option>
+              <option value="All">All Transactions (सभी किश्त व सुरक्षा)</option>
               <option value="Monthly">Monthly Plan (12 Installments)</option>
               <option value="2 Installments">2 Installments Plan</option>
               <option value="3 Installments">3 Installments Plan</option>
               <option value="4 Installments">4 Installments Plan</option>
               <option value="6 Installments">6 Installments Plan</option>
+              <option value="Security">🛡️ Security Deposits Only (केवल सुरक्षा निधि)</option>
             </select>
             <Filter className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
             <div className="absolute right-3.5 top-3 pointer-events-none border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-500"></div>
@@ -209,6 +216,7 @@ export default function PaymentManagement({
             ) : (
               filteredPayments.slice().reverse().map((p) => {
                 const planType = getStudentInstallmentType(p.studentId);
+                const isSec = isSecurityDepositPayment(p);
                 return (
                   <tr key={p.id} className="hover:bg-[#FF6B35]/3 transition-all">
                     {/* Code */}
@@ -226,16 +234,29 @@ export default function PaymentManagement({
 
                     {/* Installment Plan Badge */}
                     <td className="py-4 px-5">
-                      <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-orange-50 text-[#FF6B35] border border-orange-100 uppercase tracking-widest">
-                        {planType}
-                      </span>
+                      {isSec ? (
+                        <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-amber-100 text-amber-900 border border-amber-300 uppercase tracking-wide inline-flex items-center gap-1">
+                          <span>🛡️</span> Security Deposit
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 text-[10px] font-black rounded-full bg-orange-50 text-[#FF6B35] border border-orange-100 uppercase tracking-widest">
+                          {p.paymentType === 'Installment' && p.installmentNo ? p.installmentNo : planType}
+                        </span>
+                      )}
                     </td>
 
                     {/* amount accumulated */}
                     <td className="py-4 px-5">
-                      <span className="text-xs sm:text-sm font-black text-emerald-600">
-                        ₹{p.amount.toLocaleString('en-IN')}
-                      </span>
+                      <div>
+                        <span className={`text-xs sm:text-sm font-black ${isSec ? 'text-amber-800 font-bold' : 'text-emerald-600'}`}>
+                          ₹{p.amount.toLocaleString('en-IN')}
+                        </span>
+                        {isSec && (
+                          <span className="block text-[9px] text-amber-700 font-extrabold tracking-tight">
+                            (अलग सुरक्षित अमानत)
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* mode */}

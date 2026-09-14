@@ -6,7 +6,7 @@ import {
   Cake, Gift, Zap, Calculator, FileText, CheckCircle2, RefreshCw,
   Share2, Copy, Check, ExternalLink, MessageCircle, X
 } from 'lucide-react';
-import { Student, Payment, Complaint, Visitor, HostelSettings, UserSession } from '../types';
+import { Student, Payment, Complaint, Visitor, HostelSettings, UserSession, isSecurityDepositPayment } from '../types';
 import Modal from './Modal';
 import { getLiveAppUrl } from '../utils/url';
 
@@ -98,9 +98,15 @@ export default function DashboardHome({
   };
   const dueStudentsCount = students.filter(s => s.due > 0).length;
   const pendingComplaintsCount = complaints.filter(c => c.status === 'Pending').length;
-  const totalCollectedAmount = payments.reduce((sum, p) => sum + p.amount, 0);
-  const cashCollectedAmount = payments.filter(p => p.mode === 'Cash').reduce((sum, p) => sum + p.amount, 0);
-  const onlineCollectedAmount = payments.filter(p => p.mode !== 'Cash').reduce((sum, p) => sum + p.amount, 0);
+  // Exclude Security Deposits from Total Collected as instructed by hostel owner
+  const feePayments = payments.filter(p => !isSecurityDepositPayment(p));
+  const securityPayments = payments.filter(p => isSecurityDepositPayment(p));
+
+  const totalCollectedAmount = feePayments.reduce((sum, p) => sum + p.amount, 0);
+  const cashCollectedAmount = feePayments.filter(p => p.mode === 'Cash').reduce((sum, p) => sum + p.amount, 0);
+  const onlineCollectedAmount = feePayments.filter(p => p.mode !== 'Cash').reduce((sum, p) => sum + p.amount, 0);
+  const totalSecurityHeld = securityPayments.reduce((sum, p) => sum + p.amount, 0);
+  const totalRegisteredSecurity = students.reduce((sum, s) => sum + (s.securityDeposit || 0), 0);
 
   // Helper to parse DD/MM/YYYY or YYYY-MM-DD dates
   const parseJoinDate = (dateStr: string) => {
@@ -375,7 +381,7 @@ export default function DashboardHome({
   const stats = [
     { label: "Total Active Students", value: totalActiveStudents, sub: `Capacity: ${totalCapacity} Total Seats`, colorClass: "text-emerald-600 bg-emerald-50 border-emerald-100", icon: <Users className="w-5 h-5 text-emerald-600" /> },
     { label: "Vacant Beds", value: vacantBeds, sub: `Out of ${totalCapacity} Total Capacity`, colorClass: "text-sky-600 bg-sky-50 border-sky-100", icon: <DoorOpen className="w-5 h-5 text-sky-600" /> },
-    { label: "Total Collected", value: `₹${totalCollectedAmount.toLocaleString('en-IN')}`, sub: "Accumulated collection", colorClass: "text-[#FF6B35] bg-orange-50 border-orange-100", icon: <IndianRupee className="w-5 h-5 text-[#FF6B35]" /> },
+    { label: "Total Collected", value: `₹${totalCollectedAmount.toLocaleString('en-IN')}`, sub: "Fees & Rent (Security excluded)", colorClass: "text-[#FF6B35] bg-orange-50 border-orange-100", icon: <IndianRupee className="w-5 h-5 text-[#FF6B35]" /> },
     { label: "Due Payments", value: dueStudentsCount, sub: "Requires instant attention", colorClass: "text-rose-600 bg-rose-50 border-rose-100", icon: <AlertTriangle className="w-5 h-5 text-rose-600" /> },
     { 
       label: "Upcoming Payments", 
@@ -458,17 +464,27 @@ export default function DashboardHome({
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-gray-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    Cash:
+                    Cash Fees:
                   </span>
                   <span className="text-gray-800 font-black">₹{cashCollectedAmount.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-gray-400">
                     <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                    Online:
+                    Online Fees:
                   </span>
                   <span className="text-gray-800 font-black">₹{onlineCollectedAmount.toLocaleString('en-IN')}</span>
                 </div>
+                {(totalSecurityHeld > 0 || totalRegisteredSecurity > 0) && (
+                  <div className="mt-1 pt-1.5 border-t border-amber-200 bg-amber-50/90 -mx-1 px-1.5 py-1 rounded-md text-amber-900 flex items-center justify-between">
+                    <span className="flex items-center gap-1 text-[9px] font-black">
+                      🛡️ Security (अलग सुरक्षित):
+                    </span>
+                    <span className="font-black text-[10px] text-amber-950">
+                      ₹{(totalSecurityHeld > 0 ? totalSecurityHeld : totalRegisteredSecurity).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                )}
               </div>
             )}	
           </div>

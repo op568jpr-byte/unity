@@ -11,8 +11,9 @@ interface PaymentFormProps {
     month: string; 
     date?: string;
     note: string; 
-    paymentType: 'Monthly' | 'Installment'; 
-    installmentNo?: string 
+    paymentType: 'Monthly' | 'Installment' | 'Security'; 
+    installmentNo?: string;
+    isSecurityDeposit?: boolean;
   }) => void;
   onCancel: () => void;
   onShowToast?: (msg: string, isError?: boolean) => void;
@@ -100,9 +101,14 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
       setNote(paymentToEdit.note || '');
       setPaymentDate(parseDateToYYYYMMDD(paymentToEdit.date));
       
-      const scheme = paymentToEdit.paymentType === 'Installment' 
-        ? (paymentToEdit.installmentNo || '1st Installment') 
-        : 'Monthly';
+      const isSec = paymentToEdit.isSecurityDeposit === true || 
+                    paymentToEdit.paymentType === 'Security' || 
+                    paymentToEdit.installmentNo === 'Security Deposit';
+      const scheme = isSec
+        ? 'Security Deposit'
+        : (paymentToEdit.paymentType === 'Installment' 
+          ? (paymentToEdit.installmentNo || '1st Installment') 
+          : 'Monthly');
       setPaymentScheme(scheme);
       
       if (paymentToEdit.month && paymentToEdit.month !== 'N/A') {
@@ -125,7 +131,21 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
     setErrorMsg(null);
     const s = students.find(x => x.id === id);
     if (s) {
-      setAmount(s.due > 0 ? s.due : s.fee);
+      if (paymentScheme === 'Security Deposit') {
+        setAmount(s.securityDeposit && s.securityDeposit > 0 ? s.securityDeposit : 2000);
+      } else {
+        setAmount(s.due > 0 ? s.due : s.fee);
+      }
+    }
+  };
+
+  const handleSchemeChange = (newScheme: string) => {
+    setPaymentScheme(newScheme);
+    if (newScheme === 'Security Deposit' && studentId) {
+      const s = students.find(x => x.id === studentId);
+      if (s && s.securityDeposit && s.securityDeposit > 0) {
+        setAmount(s.securityDeposit);
+      }
     }
   };
 
@@ -138,8 +158,13 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
       return;
     }
 
-    const calculatedPaymentType: 'Monthly' | 'Installment' = paymentScheme === 'Monthly' ? 'Monthly' : 'Installment';
-    const calculatedInstallmentNo = paymentScheme === 'Monthly' ? undefined : paymentScheme;
+    const isSecurity = paymentScheme === 'Security Deposit';
+    const calculatedPaymentType: 'Monthly' | 'Installment' | 'Security' = isSecurity 
+      ? 'Security' 
+      : (paymentScheme === 'Monthly' ? 'Monthly' : 'Installment');
+    const calculatedInstallmentNo = isSecurity 
+      ? 'Security Deposit' 
+      : (paymentScheme === 'Monthly' ? undefined : paymentScheme);
     const formattedPaymentDate = formatYYYYMMDDToDDMMYYYY(paymentDate);
 
     onSubmit({ 
@@ -148,9 +173,10 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
       mode, 
       month: calculatedPaymentType === 'Monthly' ? month : 'N/A', 
       date: formattedPaymentDate,
-      note, 
+      note: note ? note : (isSecurity ? 'Security Deposit (सुरक्षा निधि)' : ''), 
       paymentType: calculatedPaymentType,
-      installmentNo: calculatedInstallmentNo
+      installmentNo: calculatedInstallmentNo,
+      isSecurityDeposit: isSecurity
     });
   };
 
@@ -240,7 +266,7 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
         <select
           value={paymentScheme}
           required
-          onChange={e => setPaymentScheme(e.target.value)}
+          onChange={e => handleSchemeChange(e.target.value)}
           className="w-full px-3.5 py-3 border border-gray-200 rounded-xl focus:border-[#FF6B35] bg-white cursor-pointer outline-none font-bold text-gray-800 text-xs sm:text-sm"
         >
           <option value="Monthly">Monthly Rent (मासिक किराया)</option>
@@ -249,9 +275,20 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
           <option value="3rd Installment">3rd Installment (तीसरी किस्त)</option>
           <option value="4th Installment">4th Installment (चौथी किस्त)</option>
           <option value="5th Installment">5th Installment (पांचवीं किस्त)</option>
-          <option value="Security Deposit">Security Deposit (सुरक्षा निधि)</option>
+          <option value="Security Deposit">🛡️ Security Deposit (सुरक्षा निधि - अलग अमानत खाता)</option>
           <option value="Other Installment">Other / Custom Installment (अन्य किस्त)</option>
         </select>
+        {paymentScheme === 'Security Deposit' && (
+          <div className="p-3 bg-amber-50 border border-amber-300/80 text-amber-900 rounded-xl flex items-start gap-2 text-xs animate-fadeIn mt-2">
+            <span className="text-base leading-none">🛡️</span>
+            <div>
+              <span className="font-extrabold block text-amber-950">रिफंडेबल धरोहर राशि (Security Deposit)</span>
+              <span className="text-[11px] text-amber-850 font-medium">
+                यह पैसा <strong>Total Collected (कुल फीस)</strong> में <u>नहीं</u> जुड़ेगा। यह छात्र के धरोहर खाते में अलग सुरक्षित रहेगा ताकि बाद में वापसी (Refund) में कोई परेशानी न हो।
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Download, Printer, CheckCircle, Smartphone, MapPin, Milestone, Receipt, Copy } from 'lucide-react';
-import { Payment, HostelSettings } from '../types';
+import { Payment, HostelSettings, isSecurityDepositPayment } from '../types';
 
 interface ReceiptPrinterProps {
   payment: Payment | null;
@@ -14,12 +14,19 @@ export default function ReceiptPrinter({ payment, settings, onClose }: ReceiptPr
 
   if (!payment) return null;
 
-  const paymentTypeLabel = payment.paymentType === 'Installment' ? 'Installment (किस्त)' : 'Monthly Rent (मासिक किराया)';
+  const isSec = isSecurityDepositPayment(payment);
+  const paymentTypeLabel = isSec
+    ? 'Security Deposit (सुरक्षा निधि - अमानत)'
+    : payment.paymentType === 'Installment'
+      ? 'Installment (किस्त)'
+      : 'Monthly Rent (मासिक किराया)';
 
   const handleCopyText = () => {
-    const periodOrInstallment = payment.paymentType === 'Installment' 
-      ? `Installment No:    ${payment.installmentNo || 'N/A'}` 
-      : `Billing Period:    ${payment.month || 'Current Cycle'}`;
+    const periodOrInstallment = isSec
+      ? `Deposit Nature:    Refundable Security Deposit (अमानत)`
+      : payment.paymentType === 'Installment' 
+        ? `Installment No:    ${payment.installmentNo || 'N/A'}` 
+        : `Billing Period:    ${payment.month || 'Current Cycle'}`;
 
     const txt = `===========================================
       OFFICIAL FEE PAYMENT RECEIPT
@@ -280,7 +287,7 @@ Thank you for staying with us!
               </div>
               <div class="info-line">
                 <span class="info-lbl">Payment Scheme:</span>
-                <span class="info-val">${payment.paymentType === 'Installment' ? 'Installment (' + (payment.installmentNo || 'N/A') + ')' : 'Monthly Rent'}</span>
+                <span class="info-val">${isSec ? 'Security Deposit (सुरक्षा निधि)' : (payment.paymentType === 'Installment' ? 'Installment (' + (payment.installmentNo || 'N/A') + ')' : 'Monthly Rent')}</span>
               </div>
               <div class="info-line">
                 <span class="info-lbl">Method of Pay:</span>
@@ -303,14 +310,14 @@ Thank you for staying with us!
                 <td style="font-weight: 700;">01.</td>
                 <td>
                   <strong style="color: #0f172a; display: block; font-size: 12px;">
-                    ${payment.paymentType === 'Installment' ? 'Hostel Fee Installment Payment' : 'Hostel Monthly Rent Charge'}
+                    ${isSec ? 'Refundable Security Deposit (धरोहर राशि - अमानत)' : (payment.paymentType === 'Installment' ? 'Hostel Fee Installment Payment' : 'Hostel Monthly Rent Charge')}
                   </strong>
-                  <span style="font-size: 10px; color: #64748b; margin-top: 2px; display: block;">
-                    Category: ${payment.paymentType === 'Installment' ? 'Installment (किस्त)' : 'Monthly Cycle (मासिक किराया)'}
+                  <span style="font-size: 10px; color: ${isSec ? '#b45309' : '#64748b'}; margin-top: 2px; display: block; font-weight: ${isSec ? '700' : '400'};">
+                    Category: ${paymentTypeLabel} ${isSec ? '(Excluded from total fee revenue)' : ''}
                   </span>
                 </td>
                 <td style="font-weight: 700; color: #1e293b;">
-                  ${payment.paymentType === 'Installment' ? (payment.installmentNo || 'N/A') : (payment.month || 'Current Cycle')}
+                  ${isSec ? 'Security Deposit' : (payment.paymentType === 'Installment' ? (payment.installmentNo || 'N/A') : (payment.month || 'Current Cycle'))}
                 </td>
                 <td style="text-align: right; font-weight: 800; font-family: monospace; font-size: 13px; color: #0f172a;">
                   ₹${payment.amount.toLocaleString('en-IN')}.00
@@ -442,7 +449,9 @@ Thank you for staying with us!
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400 font-medium">Category:</span>
-                  <span className="font-bold text-slate-800">{payment.paymentType === 'Installment' ? 'Installment' : 'Monthly Rent'}</span>
+                  <span className={`font-bold ${isSec ? 'text-amber-800' : 'text-slate-800'}`}>
+                    {isSec ? 'Security Deposit' : (payment.paymentType === 'Installment' ? 'Installment' : 'Monthly Rent')}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-slate-400 font-medium">Mode:</span>
@@ -465,12 +474,14 @@ Thank you for staying with us!
                   <tr>
                     <td className="py-3 px-3">
                       <strong className="block text-slate-800 text-[11px] font-bold">
-                        {payment.paymentType === 'Installment' ? 'Hostel Fee Installment Payment' : 'Hostel Monthly Rent Charge'}
+                        {isSec ? 'Refundable Security Deposit (धरोहर राशि - अमानत)' : (payment.paymentType === 'Installment' ? 'Hostel Fee Installment Payment' : 'Hostel Monthly Rent Charge')}
                       </strong>
-                      <span className="text-[9px] text-slate-400">Category: {payment.paymentType === 'Installment' ? 'Installment (किस्त)' : 'Monthly Rent (मासिक किराया)'}</span>
+                      <span className={`text-[9px] ${isSec ? 'text-amber-700 font-bold' : 'text-slate-400'}`}>
+                        Category: {paymentTypeLabel} {isSec ? '(Excluded from total collected fee)' : ''}
+                      </span>
                     </td>
                     <td className="py-3 px-3 text-center font-extrabold text-slate-600 text-[11px]">
-                      {payment.paymentType === 'Installment' ? (payment.installmentNo || 'N/A') : (payment.month || 'Current Cycle')}
+                      {isSec ? 'Security Deposit' : (payment.paymentType === 'Installment' ? (payment.installmentNo || 'N/A') : (payment.month || 'Current Cycle'))}
                     </td>
                     <td className="py-3 px-3 text-right font-black font-mono text-slate-900 text-[11px]">
                       ₹{payment.amount.toLocaleString('en-IN')}.00
