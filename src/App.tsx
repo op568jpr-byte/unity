@@ -2025,8 +2025,8 @@ export default function App() {
                             <div class="section-title">💰 FINANCIALS STATEMENTS</div>
                             <div class="row"><span class="label">Standard Month Rent:</span><span class="value">₹${selectedViewStudent.fee.toLocaleString('en-IN')}</span></div>
                             <div class="row"><span class="label">Total Paid Till Date:</span><span class="value" style="color:green;">₹${(selectedViewStudent.paid || 0).toLocaleString('en-IN')}</span></div>
-                            <div class="row"><span class="label">Unpaid Dues Balance:</span><span class="value" ${selectedViewStudent.due > 0 ? 'style="color:red;"' : ''}>₹${(selectedViewStudent.due || 0).toLocaleString('en-IN')}</span></div>
-                            <div class="row"><span class="label">Security Deposit:</span><span class="value">₹${(selectedViewStudent.securityDeposit || 0).toLocaleString('en-IN')}</span></div>
+                            <div class="row"><span class="label">Hostel Fee Due:</span><span class="value" ${Math.max(0, (selectedViewStudent.due || 0) - (selectedViewStudent.securityDeposit || 0)) > 0 ? 'style="color:red;"' : ''}>₹${Math.max(0, (selectedViewStudent.due || 0) - (selectedViewStudent.securityDeposit || 0)).toLocaleString('en-IN')}</span></div>
+                            <div class="row"><span class="label">Security Deposit:</span><span class="value">₹${(selectedViewStudent.securityDeposit || 0).toLocaleString('en-IN')} (Slip Issued)</span></div>
                             <div class="row"><span class="label">Billing Scheme:</span><span class="value">${selectedViewStudent.feePlan || 'Monthly Plan'}</span></div>
                           </div>
                         </div>
@@ -2123,8 +2123,20 @@ export default function App() {
                 <span className="font-extrabold text-emerald-600 text-sm sm:text-base mt-0.5 block">₹{selectedViewStudent.paid.toLocaleString('en-IN')}</span>
               </div>
               <div className="text-center">
-                <span className="text-[9px] text-rose-600 font-black block uppercase tracking-wider">Balance Due</span>
-                <span className="font-extrabold text-rose-600 text-sm sm:text-base mt-0.5 block">₹{selectedViewStudent.due.toLocaleString('en-IN')}</span>
+                <span className="text-[9px] text-rose-600 font-black block uppercase tracking-wider">Fee Due</span>
+                {(() => {
+                  const feeDue = Math.max(0, (selectedViewStudent.due || 0) - (selectedViewStudent.securityDeposit || 0));
+                  return (
+                    <>
+                      <span className="font-extrabold text-rose-600 text-sm sm:text-base mt-0.5 block">₹{feeDue.toLocaleString('en-IN')}</span>
+                      {selectedViewStudent.securityDeposit ? (
+                        <span className="text-[9px] text-gray-400 font-bold block" title="Security deposit slip issued separately">
+                          (₹{selectedViewStudent.securityDeposit.toLocaleString('en-IN')} Sec Slip Given)
+                        </span>
+                      ) : null}
+                    </>
+                  );
+                })()}
               </div>
             </div>
 

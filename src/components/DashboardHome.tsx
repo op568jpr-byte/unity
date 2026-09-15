@@ -81,8 +81,37 @@ export default function DashboardHome({
   const totalCollectedAmount = feePayments.reduce((sum, p) => sum + p.amount, 0);
   const cashCollectedAmount = feePayments.filter(p => p.mode === 'Cash').reduce((sum, p) => sum + p.amount, 0);
   const onlineCollectedAmount = feePayments.filter(p => p.mode !== 'Cash').reduce((sum, p) => sum + p.amount, 0);
-  const totalSecurityHeld = securityPayments.reduce((sum, p) => sum + p.amount, 0);
-  const totalRegisteredSecurity = students.reduce((sum, s) => sum + (s.securityDeposit || 0), 0);
+
+  // Helper to identify students admitted in 2026 and after (2026 के बाद एडमिशन)
+  const isAdmission2026OrAfter = (student: Student): boolean => {
+    const rawDate = (student.joinDate || student.agreementStartDate || '').trim();
+    if (!rawDate) return false;
+    const match = rawDate.match(/\b(20\d{2})\b/);
+    if (match) {
+      return parseInt(match[1], 10) >= 2026;
+    }
+    const parsed = Date.parse(rawDate);
+    if (!isNaN(parsed)) {
+      return new Date(parsed).getFullYear() >= 2026;
+    }
+    return false;
+  };
+
+  // Only students admitted in 2026 or later as requested by hostel owner
+  const students2026Onwards = students.filter(s => isAdmission2026OrAfter(s));
+  const studentIds2026 = new Set(students2026Onwards.map(s => s.id));
+
+  // Security payments associated with 2026+ admissions
+  const securityPayments2026 = securityPayments.filter(p => {
+    if (p.studentId && studentIds2026.has(p.studentId)) return true;
+    const match = (p.date || '').match(/\b(20\d{2})\b/);
+    if (match) return parseInt(match[1], 10) >= 2026;
+    return false;
+  });
+
+  const totalSecurityHeld = securityPayments2026.reduce((sum, p) => sum + p.amount, 0);
+  const totalRegisteredSecurity = students2026Onwards.reduce((sum, s) => sum + (s.securityDeposit || 0), 0);
+  const securityDisplayAmount = totalSecurityHeld > 0 ? totalSecurityHeld : totalRegisteredSecurity;
 
   // Helper to parse DD/MM/YYYY or YYYY-MM-DD dates
   const parseJoinDate = (dateStr: string) => {
@@ -446,13 +475,13 @@ export default function DashboardHome({
                   </span>
                   <span className="text-gray-800 font-black">₹{onlineCollectedAmount.toLocaleString('en-IN')}</span>
                 </div>
-                {(totalSecurityHeld > 0 || totalRegisteredSecurity > 0) && (
+                {securityDisplayAmount > 0 && (
                   <div className="mt-1 pt-1.5 border-t border-amber-200 bg-amber-50/90 -mx-1 px-1.5 py-1 rounded-md text-amber-900 flex items-center justify-between">
-                    <span className="flex items-center gap-1 text-[9px] font-black">
-                      🛡️ Security (अलग सुरक्षित):
+                    <span className="flex items-center gap-1 text-[9px] font-black" title="Total Security Amount for students admitted in 2026 and after (2026 के बाद एडमिशन लेने वाले छात्रों की सिक्योरिटी)">
+                      🛡️ Security (2026+ Admissions):
                     </span>
                     <span className="font-black text-[10px] text-amber-950">
-                      ₹{(totalSecurityHeld > 0 ? totalSecurityHeld : totalRegisteredSecurity).toLocaleString('en-IN')}
+                      ₹{securityDisplayAmount.toLocaleString('en-IN')}
                     </span>
                   </div>
                 )}

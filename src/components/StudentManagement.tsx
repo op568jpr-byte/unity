@@ -189,7 +189,9 @@ export default function StudentManagement({
               <th className="py-4.5 px-5">Warden Room</th>
               <th className="py-4.5 px-5">Beds sharing</th>
               <th className="py-4.5 px-5">Contact & City</th>
-              <th className="py-4.5 px-5 text-right">Fee due</th>
+              <th className="py-4.5 px-5 text-right" title="Student Hostel Fee Due (Security deposit slip already issued/excluded)">
+                Fee due <span className="text-[10px] text-gray-400 font-normal block">(फीस बाकी)</span>
+              </th>
               <th className="py-4.5 px-5 text-center">Register Status</th>
               <th className="py-4.5 px-5 text-center">Action commands</th>
             </tr>
@@ -278,9 +280,21 @@ export default function StudentManagement({
 
                     {/* Out due fee */}
                     <td className="py-4 px-5 text-right font-black">
-                      <span className={s.due > 0 ? "text-rose-600 bg-rose-50 px-2 py-1 rounded-md" : "text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"}>
-                        ₹{s.due.toLocaleString('en-IN')}
-                      </span>
+                      {(() => {
+                        const feeDue = Math.max(0, (s.due || 0) - (s.securityDeposit || 0));
+                        return (
+                          <div>
+                            <span className={feeDue > 0 ? "text-rose-600 bg-rose-50 px-2 py-1 rounded-md" : "text-emerald-600 bg-emerald-50 px-2 py-1 rounded-md"}>
+                              ₹{feeDue.toLocaleString('en-IN')}
+                            </span>
+                            {s.securityDeposit && s.securityDeposit > 0 ? (
+                              <span className="block text-[10px] text-gray-400 font-medium mt-0.5" title="Security deposit slip already issued (धरोहर रसीद दी जा चुकी है)">
+                                (₹{s.securityDeposit.toLocaleString('en-IN')} Security Slip Issued)
+                              </span>
+                            ) : null}
+                          </div>
+                        );
+                      })()}
                     </td>
 
                     {/* Status Badge */}

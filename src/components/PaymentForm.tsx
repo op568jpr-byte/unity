@@ -89,6 +89,7 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
   const [paymentDate, setPaymentDate] = useState<string>(getTodayDateYYYYMMDD());
   const [note, setNote] = useState<string>('');
   const [paymentScheme, setPaymentScheme] = useState<string>('Monthly');
+  const [customInstallment, setCustomInstallment] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -104,12 +105,29 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
       const isSec = paymentToEdit.isSecurityDeposit === true || 
                     paymentToEdit.paymentType === 'Security' || 
                     paymentToEdit.installmentNo === 'Security Deposit';
-      const scheme = isSec
-        ? 'Security Deposit'
-        : (paymentToEdit.paymentType === 'Installment' 
-          ? (paymentToEdit.installmentNo || '1st Installment') 
-          : 'Monthly');
-      setPaymentScheme(scheme);
+      const knownSchemes = [
+        'Monthly',
+        '1st Installment',
+        '2nd Installment',
+        '3rd Installment',
+        '4th Installment',
+        '5th Installment',
+        '6th Installment',
+        'Security Deposit'
+      ];
+      if (isSec) {
+        setPaymentScheme('Security Deposit');
+      } else if (paymentToEdit.paymentType === 'Installment') {
+        const inst = paymentToEdit.installmentNo || '1st Installment';
+        if (knownSchemes.includes(inst)) {
+          setPaymentScheme(inst);
+        } else {
+          setPaymentScheme('Other Installment');
+          setCustomInstallment(inst);
+        }
+      } else {
+        setPaymentScheme('Monthly');
+      }
       
       if (paymentToEdit.month && paymentToEdit.month !== 'N/A') {
         setMonth(paymentToEdit.month);
@@ -164,7 +182,11 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
       : (paymentScheme === 'Monthly' ? 'Monthly' : 'Installment');
     const calculatedInstallmentNo = isSecurity 
       ? 'Security Deposit' 
-      : (paymentScheme === 'Monthly' ? undefined : paymentScheme);
+      : (paymentScheme === 'Monthly' 
+          ? undefined 
+          : (paymentScheme === 'Other Installment' 
+              ? (customInstallment.trim() || 'Custom Installment') 
+              : paymentScheme));
     const formattedPaymentDate = formatYYYYMMDDToDDMMYYYY(paymentDate);
 
     onSubmit({ 
@@ -256,6 +278,35 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
             Showing {filteredStudents.length} of {students.length} students matching search term.
           </p>
         )}
+
+        {studentId > 0 && (() => {
+          const selStudent = students.find(s => s.id === studentId);
+          if (!selStudent) return null;
+          return (
+            <div className="p-2.5 bg-white rounded-xl border border-gray-250 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div>
+                <span className="font-extrabold text-gray-800">{selStudent.name}</span>
+                <span className="text-gray-400 font-semibold ml-1.5">(कमरा {selStudent.room})</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5 text-[10px]">
+                <span className="px-2 py-0.5 rounded-md font-bold bg-orange-50 text-[#FF6B35] border border-orange-200">
+                  प्लान: {selStudent.installmentType || 'Monthly'}
+                </span>
+                {selStudent.yearlyTotalFee ? (
+                  <span className="px-2 py-0.5 rounded-md font-bold bg-slate-100 text-slate-700">
+                    पैकेज: ₹{selStudent.yearlyTotalFee.toLocaleString('en-IN')}
+                  </span>
+                ) : null}
+                <span className="px-2 py-0.5 rounded-md font-bold bg-emerald-50 text-emerald-700">
+                  जमा: ₹{(selStudent.paid || 0).toLocaleString('en-IN')}
+                </span>
+                <span className="px-2 py-0.5 rounded-md font-bold bg-rose-50 text-rose-700">
+                  बकाया: ₹{(selStudent.due || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Payment Type Selection */}
@@ -275,9 +326,27 @@ export default function PaymentForm({ students, onSubmit, onCancel, onShowToast,
           <option value="3rd Installment">3rd Installment (तीसरी किस्त)</option>
           <option value="4th Installment">4th Installment (चौथी किस्त)</option>
           <option value="5th Installment">5th Installment (पांचवीं किस्त)</option>
+          <option value="6th Installment">6th Installment (छठी किस्त / 6वीं किस्त)</option>
           <option value="Security Deposit">🛡️ Security Deposit (सुरक्षा निधि - अलग अमानत खाता)</option>
-          <option value="Other Installment">Other / Custom Installment (अन्य किस्त)</option>
+          <option value="Other Installment">Other / Custom Installment (अन्य किस्त / कस्टम)</option>
         </select>
+
+        {paymentScheme === 'Other Installment' && (
+          <div className="pt-2 animate-fadeIn">
+            <label className="block text-[11px] font-bold text-gray-700 mb-1">
+              Custom Installment / किस्त का विवरण लिखें *
+            </label>
+            <input
+              type="text"
+              required
+              value={customInstallment}
+              onChange={e => setCustomInstallment(e.target.value)}
+              placeholder="उदा. 6वीं किस्त, स्पेशल फीस, फाइनल किस्त"
+              className="w-full px-3.5 py-2.5 border border-orange-200 focus:border-[#FF6B35] rounded-xl outline-none text-xs font-bold text-gray-800 bg-white"
+            />
+          </div>
+        )}
+
         {paymentScheme === 'Security Deposit' && (
           <div className="p-3 bg-amber-50 border border-amber-300/80 text-amber-900 rounded-xl flex items-start gap-2 text-xs animate-fadeIn mt-2">
             <span className="text-base leading-none">🛡️</span>
